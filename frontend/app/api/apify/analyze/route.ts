@@ -2,17 +2,24 @@ import { NextResponse } from 'next/server';
 import { ApifyClient } from 'apify-client';
 
 export async function POST(req: Request) {
+    const logs: string[] = [];
+    const log = (msg: string) => {
+        console.log(msg);
+        logs.push(msg);
+    };
+
     try {
         const { profiles } = await req.json();
+        log(`Received request for profiles: ${JSON.stringify(profiles)}`);
 
         if (!profiles || !Array.isArray(profiles) || profiles.length === 0) {
-            return NextResponse.json({ error: 'Profiles list is required' }, { status: 400 });
+            return NextResponse.json({ error: 'Profiles list is required', logs }, { status: 400 });
         }
 
         const apifyToken = process.env.APIFY_API_TOKEN;
         if (!apifyToken) {
-            console.error('APIFY_API_TOKEN is not set');
-            return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
+            log('APIFY_API_TOKEN is not set');
+            return NextResponse.json({ error: 'Server misconfiguration', logs }, { status: 500 });
         }
 
         const client = new ApifyClient({
@@ -31,26 +38,38 @@ export async function POST(req: Request) {
             "shouldDownloadVideos": false,
         };
 
-        console.log('Running Apify actor (0FXVyOXXEmdGcV88a) for analysis with input:', JSON.stringify(input, null, 2));
+        log(`Running Apify actor (0FXVyOXXEmdGcV88a) with input: ${JSON.stringify(input)}`);
 
         // Run the Actor
         // Actor ID: 0FXVyOXXEmdGcV88a (TikTok Scraper)
         const run = await client.actor("0FXVyOXXEmdGcV88a").call(input);
 
-        console.log('Actor finished. Fetching results from dataset:', run.defaultDatasetId);
+        log(`Actor finished. Dataset ID: ${run.defaultDatasetId}`);
 
         // Fetch results
-        const { items } = await client.dataset(run.defaultDatasetId).listItems();
+        const { items } = await client.dataset(run.defaultDatasetId).listItems() as { items: any[] };
+        log(`Items fetched from Apify: ${items.length}`);
+
+        if (items.length > 0) {
+            const sampleKeys = Object.keys(items[0]).join(', ');
+            log(`First item keys: ${sampleKeys}`);
+            log(`First item username check: ${items[0].authorMeta?.name} OR ${items[0]['authorMeta.name']}`);
+        } else {
+            log('WARNING: Apify returned 0 items.');
+        }
 
         // Process results to calculate metrics per profile
         const analysisResults = calculateMetrics(items, profiles);
+        log(`Analysis results calculated: ${analysisResults.length} entries`);
 
-        return NextResponse.json({ results: analysisResults });
+        return NextResponse.json({ results: analysisResults, logs });
 
     } catch (error: any) {
+        log(`Error: ${error.message}`);
         console.error('Apify Analysis Error:', error);
         return NextResponse.json({
-            error: error.message || 'Failed to analyze profiles'
+            error: error.message || 'Failed to analyze profiles',
+            logs
         }, { status: 500 });
     }
 }

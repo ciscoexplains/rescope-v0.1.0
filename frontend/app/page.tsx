@@ -1,540 +1,532 @@
 'use client';
-import { useState } from 'react';
-import Link from 'next/link';
-import { Search, Loader2, UserSearch, Filter, X, Check, BarChart2 } from 'lucide-react';
+
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Plus, Users, UserCheck, UserMinus, Trash2, Loader2, Folder, CheckCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/modal';
+import { Input } from '@/components/ui/input';
+import PocketBase from 'pocketbase';
+import statsFormatter from '../lib/utils'; // You might need to move statsFormatter to utils or keep it local
+
+// Initialize PocketBase client-side
+const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
 
 export default function Home() {
-  const [description, setDescription] = useState('');
-  const [scrapeLimit, setScrapeLimit] = useState(10);
+  const router = useRouter();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState(''); // 'analyzing' | 'searching'
-  const [results, setResults] = useState<any[]>([]);
-  const [error, setError] = useState('');
-  const [searched, setSearched] = useState(false);
-  const [selectedTiers, setSelectedTiers] = useState<string[]>([]);
-  const [minFollowers, setMinFollowers] = useState<number | ''>('');
+  const [loadingStep, setLoadingStep] = useState(''); // 'analyzing' | 'searching' | 'saving'
 
-  // Analysis State
-  const [selectedProfiles, setSelectedProfiles] = useState<Set<string>>(new Set());
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analysisResults, setAnalysisResults] = useState<any[]>([]);
-  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState({
+    campaignName: '',
+    prompt: '',
+    clientName: '',
+    minFollowers: '',
+    maxFollowers: '',
+    minScraped: '10', // Default
+    maxScraped: '20',
+  });
 
-  const handleSearch = async () => {
-    if (!description.trim()) return;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    console.log(`Input Change: ${name} = ${value}`);
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.prompt) return;
 
     setLoading(true);
     setLoadingStep('analyzing');
-    setError('');
-    setResults([]);
-    setSearched(false);
-    setSelectedTiers([]);
-    setMinFollowers('');
-    setSelectedProfiles(new Set());
 
     try {
-      // 1. Analyze and Recommend
-      const res = await fetch('/api/recommend', {
+      // 1. Analyze Prompt using Gemini to get Categories
+      const recommendRes = await fetch('/api/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description }),
+        body: JSON.stringify({ description: formData.prompt }),
       });
 
-      const data = await res.json();
+      if (!recommendRes.ok) throw new Error('Failed to analyze prompt');
+      const recommendData = await recommendRes.json();
+      const categoriesToSearch = recommendData.results || [];
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to analyze campaign');
-      }
+      // 2. Create Campaign Record (Status: Loading)
+      setLoadingStep('creating_campaign');
+      const campaignRecord = await pb.collection('campaigns').create({
+        name: formData.campaignName,
+        prompt: formData.prompt,
+        client_name: formData.clientName,
+        status: 'Loading',
+        min_followers: Number(formData.minFollowers) || 0,
+        max_followers: Number(formData.maxFollowers) || 0,
+        min_scraped: Number(formData.minScraped) || 0,
+        max_scraped: Number(formData.maxScraped) || 0,
+      });
 
-      if (!data.results || data.results.length === 0) {
-        throw new Error('No categories found');
-      }
-
-      // Take top 2 categories
-      const categoriesToSearch = data.results.slice(0, 2);
+      // 3. Search Profiles using Apify
+      setLoadingStep('searching');
       let combinedResults: any[] = [];
 
-      setLoadingStep('searching');
+      // Limit search to the user's "Max Scraped" setting per category (simplification)
+      const limitPerCat = Math.ceil((Number(formData.maxScraped) || 20) / Math.max(categoriesToSearch.length, 1));
 
-      // 2. Sequential Search
       for (const cat of categoriesToSearch) {
         if (cat.queries && cat.queries.length > 0) {
-          const query = cat.queries[0]; // Take the first query
-
+          const query = cat.queries[0];
           const searchRes = await fetch('/api/apify/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query, limit: scrapeLimit }),
+            body: JSON.stringify({ query, limit: limitPerCat }),
           });
 
           if (searchRes.ok) {
             const searchData = await searchRes.json();
-            const taggedResults = (searchData.results || []).map((item: any) => ({
+            const tagged = (searchData.results || []).map((item: any) => ({
               ...item,
-              sourceCategory: cat.category, // Tag with category name
-              sourceQuery: query
+              sourceCategory: cat.category,
+              categories: [cat.main_category, cat.sub_category]
             }));
-            combinedResults = [...combinedResults, ...taggedResults];
+            combinedResults = [...combinedResults, ...tagged];
           }
         }
       }
 
-      // Deduplicate results based on authorMeta.name
+      // Deduplicate by username AND Filter by Followers
       const uniqueResults: any[] = [];
       const seenUsers = new Set<string>();
+      const minF = Number(formData.minFollowers) || 0;
+      const maxF = formData.maxFollowers ? Number(formData.maxFollowers) : Infinity;
 
       for (const item of combinedResults) {
         const username = item.authorMeta?.name?.toLowerCase();
+        const followers = item.authorMeta?.fans || 0;
+
         if (username && !seenUsers.has(username)) {
-          seenUsers.add(username);
-          uniqueResults.push(item);
+          // Apply Follower Filter
+          if (followers >= minF && followers <= maxF) {
+            seenUsers.add(username);
+            uniqueResults.push(item);
+          }
         }
       }
 
-      setResults(uniqueResults);
-      setSearched(true);
+      // 4. Save Candidates to PocketBase
+      setLoadingStep('saving');
 
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
+      const savePromises = uniqueResults.map(async (item) => {
+        try {
+          const followers = item.authorMeta?.fans || 0;
+          let tier = 'Nano';
+          if (followers >= 1000000) tier = 'Mega';
+          else if (followers >= 100000) tier = 'Mid/Macro';
+          else if (followers >= 10000) tier = 'Micro';
+          else if (followers >= 2000) tier = 'Nano';
+          else tier = 'Unlisted'; // Default for < 2000
+
+          const er = 0; // Will be analyzed later
+
+          await pb.collection('candidates').create({
+            campaign: campaignRecord.id,
+            kol_id: `KOL${Math.floor(Math.random() * 1000000).toString().padStart(7, '0')}`,
+            kol_name: item.authorMeta?.nickName || item.authorMeta?.name || 'Unknown',
+            contact: 'None',
+            contact_name: 'None',
+            email: 'None',
+            instagram: '', // Explicit empty string instead of null
+            tiktok: item.authorMeta?.name || '',
+            ig_followers: 0,
+            tt_followers: followers,
+            tier: tier,
+            er: er,
+            avg_views: item.playCount || 0,
+            reach: item.playCount || Math.round(followers * 0.1),
+            is_verified: item.authorMeta?.verified || false,
+            genuine_rate: 0, // Legacy
+            match_score: 0, // Legacy
+            type: 'Influencer',
+            categories: item.categories || [],
+            grade: 'None',
+            region: [],
+            gender: 'Unknown',
+            age: 'Unknown',
+            religion: 'Unknown',
+            avatar: item.authorMeta?.avatar || '',
+            username: item.authorMeta?.name || '',
+            signature: item.authorMeta?.signature || '',
+            status: 'New'
+          }, { requestKey: null }); // Disable auto-cancellation for parallel requests
+        } catch (err) {
+          console.error("Failed to save candidate:", item.authorMeta?.name, err);
+        }
+      });
+
+      await Promise.all(savePromises);
+
+      // 5. Update Campaign Status
+      await pb.collection('campaigns').update(campaignRecord.id, {
+        status: 'Ongoing',
+        kol_count: uniqueResults.length
+      });
+
+      // 6. Close Modal and Redirect
+      setIsCreateModalOpen(false);
+      setLoading(false);
+      router.push(`/projects/active`);
+
+    } catch (error) {
+      console.error("Campaign Creation Failed:", error);
+      alert("Failed to create campaign. Check console for details.");
       setLoading(false);
       setLoadingStep('');
     }
   };
 
-  const removeProfile = (username: string) => {
-    setResults(results.filter(item => item.authorMeta?.name !== username));
-    if (selectedProfiles.has(username)) {
-      const newSelection = new Set(selectedProfiles);
-      newSelection.delete(username);
-      setSelectedProfiles(newSelection);
-    }
-  };
-
-  const toggleSelection = (username: string) => {
-    const newSelection = new Set(selectedProfiles);
-    if (newSelection.has(username)) {
-      newSelection.delete(username);
-    } else {
-      newSelection.add(username);
-    }
-    setSelectedProfiles(newSelection);
-  };
-
-  const handleAnalyze = async () => {
-    if (selectedProfiles.size === 0) return;
-
-    setAnalyzing(true);
-    setError('');
-
-    try {
-      const res = await fetch('/api/apify/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profiles: Array.from(selectedProfiles) }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to analyze profiles');
-      }
-
-      setAnalysisResults(data.results || []);
-      setShowModal(true);
-
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
-  const toggleTier = (tier: string) => {
-    if (selectedTiers.includes(tier)) {
-      setSelectedTiers(selectedTiers.filter(t => t !== tier));
-    } else {
-      setSelectedTiers([...selectedTiers, tier]);
-    }
-  };
-
-  const filteredResults = results.filter(item => {
-    let matches = true;
-
-    // Always exclude Untiered profiles (< 2000 followers)
-    if (!getTier(item.authorMeta?.fans)) {
-      return false;
-    }
-
-    // Tier Filter
-    if (selectedTiers.length > 0) {
-      const tier = getTier(item.authorMeta?.fans);
-      if (!tier || !selectedTiers.includes(tier)) {
-        matches = false;
-      }
-    }
-
-    // Follower Filter
-    if (minFollowers !== '' && (item.authorMeta?.fans || 0) < Number(minFollowers)) {
-      matches = false;
-    }
-
-    return matches;
+  // Dashboard State
+  const [stats, setStats] = useState({
+    activeCampaigns: 0,
+    completedCampaigns: 0,
+    totalScraped: 0,
+    reviewed: 0,
+    underReview: 0,
+    trashed: 0,
   });
 
-  const tiers = ['Nano', 'Micro', 'Mid/Macro', 'Mega'];
+  const [summaryData, setSummaryData] = useState({
+    avgER: '0.0%',
+    categories: [] as string[],
+    regions: [] as string[],
+    tiers: [] as string[],
+  });
+
+  const [tierData, setTierData] = useState<Record<string, number>>({});
+
+  const fetchStats = async () => {
+    try {
+      // 1. Fetch Counts (Optimized)
+      const [
+        activeCampResult,
+        completedCampResult,
+        allResult,
+        reviewedResult,
+        trashedResult,
+        recentCandidates
+      ] = await Promise.all([
+        pb.collection('campaigns').getList(1, 1, { filter: 'status != "Completed"', requestKey: null }),
+        pb.collection('campaigns').getList(1, 1, { filter: 'status = "Completed"', requestKey: null }),
+        pb.collection('candidates').getList(1, 1, { requestKey: null }),
+        pb.collection('candidates').getList(1, 1, { filter: 'status = "Reviewed"', requestKey: null }),
+        pb.collection('candidates').getList(1, 1, { filter: 'status = "Trashed"', requestKey: null }),
+        pb.collection('candidates').getList(1, 200, { requestKey: null }) // Fetch last 200 for insights
+      ]);
+
+      // 2. Update Basic Stats
+      const total = allResult.totalItems;
+      const reviewed = reviewedResult.totalItems;
+      const trashed = trashedResult.totalItems;
+
+      setStats({
+        activeCampaigns: activeCampResult.totalItems,
+        completedCampaigns: completedCampResult.totalItems,
+        totalScraped: total,
+        reviewed: reviewed,
+        underReview: Math.max(0, total - reviewed - trashed),
+        trashed: trashed,
+      });
+
+      // 3. Calculate Insights from Recent Data
+      const items = recentCandidates.items;
+
+      // ER Calc
+      const totalER = items.reduce((sum, item) => sum + (item.er || 0), 0);
+      const avgER = items.length > 0 ? (totalER / items.length).toFixed(1) + '%' : '0.0%';
+
+      // Frequency Counters
+      const catCount: Record<string, number> = {};
+      const regCount: Record<string, number> = {};
+      const tCount: Record<string, number> = {};
+
+      items.forEach(item => {
+        // Categories
+        if (item.categories && Array.isArray(item.categories)) {
+          item.categories.forEach((c: string) => catCount[c] = (catCount[c] || 0) + 1);
+        }
+        // Regions
+        if (item.region && Array.isArray(item.region)) {
+          item.region.forEach((r: string) => regCount[r] = (regCount[r] || 0) + 1);
+        }
+        // Tiers
+        if (item.tier) {
+          tCount[item.tier] = (tCount[item.tier] || 0) + 1;
+        }
+      });
+
+      // Sort and Top N
+      const topCats = Object.entries(catCount).sort((a, b) => b[1] - a[1]).slice(0, 3).map(x => x[0]);
+      const topRegs = Object.entries(regCount).sort((a, b) => b[1] - a[1]).slice(0, 3).map(x => x[0]);
+      const topTiers = Object.entries(tCount).sort((a, b) => b[1] - a[1]).slice(0, 2).map(x => x[0]);
+
+      setSummaryData({
+        avgER,
+        categories: topCats,
+        regions: topRegs,
+        tiers: topTiers
+      });
+
+      setTierData(tCount);
+
+    } catch (err) {
+      console.error("Error fetching stats:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+    // Subscribe to candidates for realtime updates
+    pb.collection('candidates').subscribe('*', () => {
+      fetchStats();
+    });
+    return () => {
+      pb.collection('candidates').unsubscribe();
+    };
+  }, []);
+
+  const dashboardStats = [
+    { label: 'Active Campaigns', value: stats.activeCampaigns, icon: Folder, color: 'text-purple-600', bg: 'bg-purple-100' },
+    { label: 'Completed Campaigns', value: stats.completedCampaigns, icon: CheckCircle, color: 'text-teal-600', bg: 'bg-teal-100' },
+    { label: 'Total Scraped KOLs', value: statsFormatter(stats.totalScraped), icon: Users, color: 'text-blue-600', bg: 'bg-blue-100' },
+    { label: 'Reviewed KOLs', value: statsFormatter(stats.reviewed), icon: UserCheck, color: 'text-green-600', bg: 'bg-green-100' },
+    { label: 'Under-Reviewed KOLs', value: statsFormatter(stats.underReview), icon: UserMinus, color: 'text-orange-600', bg: 'bg-orange-100' },
+    { label: 'Trashed / Ignored', value: statsFormatter(stats.trashed), icon: Trash2, color: 'text-red-600', bg: 'bg-red-100' },
+  ];
+
+  /* Tier Heatmap Config */
+  const TIER_DEFINITIONS = [
+    { name: 'Nano', color: 'bg-gray-100 text-gray-800', range: '1K - 10K' },
+    { name: 'Micro', color: 'bg-blue-100 text-blue-800', range: '10K - 50K' },
+    { name: 'Mid/Macro', color: 'bg-purple-100 text-purple-800', range: '50K - 1M' },
+    { name: 'Mega', color: 'bg-orange-100 text-orange-800', range: '1M - 5M' },
+    { name: 'Super', color: 'bg-yellow-100 text-yellow-800', range: '> 5M' },
+    { name: 'Unlisted', color: 'bg-gray-50 text-gray-500', range: '?' },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl w-full space-y-8">
-        <div className="text-center max-w-3xl mx-auto">
-          <h1 className="text-4xl font-bold text-gray-900 tracking-tight flex items-center justify-center gap-3">
-            RE:Scope by RENOIR
-          </h1>
-          <p className="mt-2 text-lg text-gray-600">
-            AI-powered recommendations for your next influencer campaign.
-          </p>
-          {/* Removed Search Profiles Directly button as requested */}
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-[var(--color-text-main)]">Dashboard</h1>
+          <p className="text-gray-500 mt-1">Overview of your influencer campaigns and insights.</p>
         </div>
+        <Button onClick={() => setIsCreateModalOpen(true)}>
+          <Plus size={20} className="mr-2" />
+          Create Campaign
+        </Button>
+      </div>
 
-        <div className="bg-white shadow-xl rounded-2xl p-8 border border-gray-100 max-w-3xl mx-auto w-full">
-          <div className="space-y-4">
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-              Campaign Description
-            </label>
+      {/* Summary Box */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Insight Summary</CardTitle>
+          <CardDescription>Performance based on recent 200 candidates</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Avg. ER%</p>
+              <p className="text-2xl font-bold text-[var(--color-primary)]">{summaryData.avgER}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500">Top Categories</p>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {summaryData.categories.length > 0 ? summaryData.categories.map(c => (
+                  <span key={c} className="text-xs font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">{c}</span>
+                )) : <span className="text-gray-400 text-sm">-</span>}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500">Top Regions</p>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {summaryData.regions.length > 0 ? summaryData.regions.map(r => (
+                  <span key={r} className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">{r}</span>
+                )) : <span className="text-gray-400 text-sm">-</span>}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500">Dominant Tiers</p>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {summaryData.tiers.length > 0 ? summaryData.tiers.map(t => (
+                  <span key={t} className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-800">{t}</span>
+                )) : <span className="text-gray-400 text-sm">-</span>}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {dashboardStats.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <Card key={index} className="p-6 hover:shadow-md transition-shadow">
+              <div className="flex flex-col gap-2">
+                <div className={`px-4 py-2 rounded-full ${stat.bg} w-fit flex items-center gap-3`}>
+                  <Icon className={`w-5 h-5 ${stat.color}`} />
+                  <span className={`text-xl font-bold ${stat.color}`}>{stat.value}</span>
+                </div>
+                <p className="text-sm font-medium text-gray-500 ml-1">{stat.label}</p>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Tier Heatmap */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Tier Heatmap</CardTitle>
+          <CardDescription>Distribution of influencers by tier</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            {TIER_DEFINITIONS.map((tierDef) => {
+              const count = tierData[tierDef.name] || 0;
+              return (
+                <div key={tierDef.name} className={`p-4 rounded-xl border flex flex-col items-center justify-center space-y-2 transition-all hover:scale-105 ${tierDef.color}`}>
+                  <span className="text-xs font-semibold uppercase tracking-wider opacity-80">{tierDef.name}</span>
+                  <span className="text-3xl font-bold">{count}</span>
+                  <span className="text-[10px] opacity-60 bg-white/50 px-2 py-0.5 rounded-full">
+                    {tierDef.range}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Create Campaign Modal */}
+      <Modal
+        isOpen={isCreateModalOpen}
+        onClose={() => !loading && setIsCreateModalOpen(false)}
+        title="Create New Campaign"
+        width="max-w-2xl"
+      >
+        {/* DEBUG: Remove later */}
+        <div className="text-xs text-gray-400 mb-2">Debug: Loading state = {loading.toString()}</div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input
+            label="Campaign Name"
+            name="campaignName"
+            value={formData.campaignName}
+            onChange={handleInputChange}
+            placeholder="e.g. Summer Skincare Launch"
+            fullWidth
+            required
+            disabled={loading}
+          />
+
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-[var(--color-text-main)]">Prompt Analysis</label>
             <textarea
-              id="description"
+              name="prompt"
               rows={4}
-              className="block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-gray-900 sm:text-lg p-4 bg-gray-50 resize-none outline-none ring-1 ring-gray-200"
-              placeholder="e.g. We are launching a new line of extensive skincare products for teenagers..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={formData.prompt}
+              onChange={handleInputChange}
+              className="block w-full rounded-lg border-gray-300 border outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] px-4 py-2 text-[var(--color-text-main)] bg-white resize-none"
+              placeholder="Describe your ideal KOLs and campaign goals..."
+              required
+              disabled={loading}
             />
+          </div>
 
-            <div className="flex items-center gap-4 py-2">
-              <label htmlFor="limit" className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                Max Results (per category):
-              </label>
-              <input
-                type="number"
-                id="limit"
-                min="1"
-                max="100"
-                value={scrapeLimit}
-                onChange={(e) => setScrapeLimit(Number(e.target.value))}
-                className="block w-24 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm p-2 border"
-              />
-            </div>
-
-            <button
-              onClick={handleSearch}
-              disabled={loading || !description}
-              className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-[var(--color-text-main)]">Client Name</label>
+            <select
+              name="clientName"
+              value={formData.clientName}
+              onChange={handleInputChange}
+              className="block w-full rounded-lg border-gray-300 border outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] px-4 py-2 text-[var(--color-text-main)] bg-white"
+              disabled={loading}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="animate-spin -ml-1 mr-3 h-6 w-6" />
-                  {loadingStep === 'analyzing' ? 'Analyzing Campaign...' : 'Searching Candidates...'}
-                </>
-              ) : (
-                'Find Matching KOLs'
-              )}
-            </button>
+              <option value="">Select Client</option>
+              <option value="Client A">Client A</option>
+              <option value="Client B">Client B</option>
+              <option value="Client C">Client C</option>
+            </select>
           </div>
-        </div>
 
-        {error && (
-          <div className="max-w-3xl mx-auto w-full rounded-xl bg-red-50 p-4 border border-red-200">
-            <div className="flex">
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">Error</h3>
-                <div className="mt-2 text-sm text-red-700">{error}</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {searched && (
-          <div className="max-w-7xl mx-auto w-full">
-            {/* Filter Bar */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 p-4 bg-white rounded-xl shadow-sm border border-gray-100">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  <Filter className="w-4 h-4" />
-                  Filter Tiers:
-                </span>
-                {tiers.map(tier => (
-                  <button
-                    key={tier}
-                    onClick={() => toggleTier(tier)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedTiers.includes(tier)
-                      ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-                      : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
-                      }`}
-                  >
-                    {tier}
-                  </button>
-                ))}
-              </div>
-
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text-main)] mb-1">KOL Followers Range</label>
               <div className="flex items-center gap-2">
-                <label htmlFor="minFollowers" className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                  Min Followers:
-                </label>
-                <input
+                <Input
+                  name="minFollowers"
                   type="number"
-                  id="minFollowers"
-                  value={minFollowers}
-                  onChange={(e) => setMinFollowers(e.target.value === '' ? '' : Number(e.target.value))}
-                  placeholder="e.g. 1000"
-                  className="block w-32 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm p-2 border"
+                  placeholder="Min"
+                  value={formData.minFollowers}
+                  onChange={handleInputChange}
+                  fullWidth
+                  min="0"
+                  disabled={loading}
+                />
+                <span className="text-gray-400">-</span>
+                <Input
+                  name="maxFollowers"
+                  type="number"
+                  placeholder="Max"
+                  value={formData.maxFollowers}
+                  onChange={handleInputChange}
+                  fullWidth
+                  min="0"
+                  disabled={loading}
                 />
               </div>
-
-              {(selectedTiers.length > 0 || minFollowers !== '') && (
-                <button
-                  onClick={() => { setSelectedTiers([]); setMinFollowers(''); }}
-                  className="text-sm text-gray-500 hover:text-gray-700 underline"
-                >
-                  Clear Filters
-                </button>
-              )}
             </div>
-
-            {filteredResults.length === 0 && !loading && !error && (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No matching profiles found.</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Results Grid */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredResults.map((item, idx) => {
-            const username = item.authorMeta?.name;
-            const isSelected = selectedProfiles.has(username);
-
-            return (
-              <div
-                key={idx}
-                className={`bg-white overflow-hidden shadow-lg rounded-xl hover:shadow-xl transition-all border flex flex-col relative group cursor-pointer ${isSelected ? 'ring-2 ring-indigo-500 border-indigo-500 bg-indigo-50' : 'border-gray-100'}`}
-                onClick={() => toggleSelection(username)}
-              >
-                {/* Remove Button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeProfile(username);
-                  }}
-                  className="absolute top-2 left-2 p-1.5 bg-white/80 backdrop-blur rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all z-20 shadow-sm border border-gray-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                  title="Remove Profile"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-
-                {/* Selection Checkbox */}
-                <div className={`absolute top-2 right-2 h-6 w-6 rounded-full border-2 flex items-center justify-center transition-colors z-20 ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-400 bg-white/80 hover:border-indigo-500'}`}>
-                  {isSelected && <Check className="h-4 w-4 text-white" />}
-                </div>
-
-                {/* Source Badge */}
-                <div className="absolute top-0 left-12 bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded-b-lg font-medium z-10">
-                  {item.sourceCategory}
-                </div>
-
-                <div className="p-6 flex-1 pt-8">
-                  <div className="flex items-center space-x-4 mb-4">
-                    {item.authorMeta?.avatar && (
-                      <img
-                        src={item.authorMeta.avatar}
-                        alt={item.authorMeta.name}
-                        className="h-12 w-12 rounded-full object-cover border border-gray-200"
-                      />
-                    )}
-                    <div className="overflow-hidden">
-                      <h3 className="text-lg font-bold text-gray-900 truncate flex items-center gap-2">
-                        {item.authorMeta?.nickName || item.authorMeta?.name || 'Unknown User'}
-                        {getTier(item.authorMeta?.fans) && (
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getTierColor(getTier(item.authorMeta?.fans))}`}>
-                            {getTier(item.authorMeta?.fans)}
-                          </span>
-                        )}
-                      </h3>
-                      <p className="text-sm text-gray-500 truncate">
-                        @{item.authorMeta?.name}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-600 line-clamp-3 mb-4">
-                    {item.authorMeta?.signature || 'No bio available'}
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
-                    <div className="bg-gray-100 px-2 py-1 rounded flex justify-between">
-                      <span>Followers:</span>
-                      <span className="font-semibold text-gray-700">{statsFormatter(item.authorMeta?.fans)}</span>
-                    </div>
-                    <div className="bg-gray-100 px-2 py-1 rounded flex justify-between">
-                      <span>Following:</span>
-                      <span className="font-semibold text-gray-700">{statsFormatter(item.authorMeta?.following)}</span>
-                    </div>
-                    <div className="bg-gray-100 px-2 py-1 rounded flex justify-between">
-                      <span>Likes:</span>
-                      <span className="font-semibold text-gray-700">{statsFormatter(item.authorMeta?.heart)}</span>
-                    </div>
-                    <div className="bg-gray-100 px-2 py-1 rounded flex justify-between">
-                      <span>Videos:</span>
-                      <span className="font-semibold text-gray-700">{statsFormatter(item.authorMeta?.video)}</span>
-                    </div>
-                    {item.authorMeta?.digg !== undefined && (
-                      <div className="bg-gray-100 px-2 py-1 rounded flex justify-between col-span-2">
-                        <span>Digg:</span>
-                        <span className="font-semibold text-gray-700">{statsFormatter(item.authorMeta?.digg)}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="bg-gray-50 px-6 py-4 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
-                  <a
-                    href={`https://www.tiktok.com/@${item.authorMeta?.name}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-indigo-600 hover:text-indigo-900 text-sm font-medium flex items-center justify-center"
-                  >
-                    View on TikTok
-                  </a>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Floating Analysis Button */}
-        {selectedProfiles.size > 0 && (
-          <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <button
-              onClick={handleAnalyze}
-              disabled={analyzing}
-              className="bg-gray-900 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 hover:bg-gray-800 transition-all transform hover:scale-105 disabled:opacity-75 disabled:cursor-not-allowed"
-            >
-              {analyzing ? (
-                <Loader2 className="animate-spin h-5 w-5" />
-              ) : (
-                <BarChart2 className="h-5 w-5" />
-              )}
-              <span className="font-semibold text-lg">
-                {analyzing ? 'Analyzing...' : `Analyze ${selectedProfiles.size} Profile${selectedProfiles.size > 1 ? 's' : ''}`}
-              </span>
-            </button>
-          </div>
-        )}
-
-        {/* Analysis Results Modal */}
-        {showModal && (
-          <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setShowModal(false)}></div>
-              <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-              <div className="inline-block align-bottom bg-white rounded-xl px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full sm:p-6">
-                <div className="absolute top-0 right-0 pt-4 pr-4">
-                  <button
-                    type="button"
-                    className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
-                    onClick={() => setShowModal(false)}
-                  >
-                    <span className="sr-only">Close</span>
-                    <X className="h-6 w-6" aria-hidden="true" />
-                  </button>
-                </div>
-                <div className="sm:flex sm:items-start w-full">
-                  <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                    <h3 className="text-2xl leading-6 font-bold text-gray-900 mb-6" id="modal-title">
-                      Analysis Results
-                    </h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profile</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Videos Scraped</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Views</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Views</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Interactions</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ER (View-based)</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {analysisResults.map((profile, idx) => (
-                            <tr key={idx} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  {profile.avatar && (
-                                    <div className="flex-shrink-0 h-10 w-10">
-                                      <img className="h-10 w-10 rounded-full" src={profile.avatar} alt="" />
-                                    </div>
-                                  )}
-                                  <div className="ml-4">
-                                    <div className="text-sm font-medium text-gray-900">{profile.nickname || profile.username}</div>
-                                    <div className="text-sm text-gray-500">@{profile.username}</div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {profile.totalVideos}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {statsFormatter(profile.totalViews)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {statsFormatter(Math.round(profile.avgViews))}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {statsFormatter(profile.totalInteractions)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                  {profile.erByViews}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text-main)] mb-1">KOLs Scraped Range</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  name="minScraped"
+                  type="number"
+                  placeholder="Min"
+                  value={formData.minScraped}
+                  onChange={handleInputChange}
+                  fullWidth
+                  min="1"
+                  disabled={loading}
+                />
+                <span className="text-gray-400">-</span>
+                <Input
+                  name="maxScraped"
+                  type="number"
+                  placeholder="Max"
+                  value={formData.maxScraped}
+                  onChange={handleInputChange}
+                  fullWidth
+                  min="1"
+                  disabled={loading}
+                />
               </div>
             </div>
           </div>
-        )}
-      </div>
+
+          <div className="flex justify-end pt-4">
+            <Button type="submit" variant="primary" size="lg" disabled={loading} isLoading={loading}>
+              {loading ? (
+                loadingStep === 'analyzing' ? 'Analyzing Prompt...'
+                  : loadingStep === 'searching' ? 'Finding KOLs...'
+                    : loadingStep === 'saving' ? 'Saving Candidates...'
+                      : 'Processing...'
+              ) : 'Submit Campaign'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
-}
-
-function statsFormatter(num: number | undefined) {
-  if (num === undefined) return '0';
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-  return num.toString();
-}
-
-function getTier(followers: number | undefined) {
-  if (followers === undefined) return null;
-  if (followers >= 1000000) return 'Mega';
-  if (followers >= 100000) return 'Mid/Macro';
-  if (followers >= 10000) return 'Micro';
-  if (followers >= 2000) return 'Nano';
-  return null;
-}
-
-function getTierColor(tier: string | null) {
-  switch (tier) {
-    case 'Mega': return 'bg-purple-100 text-purple-800';
-    case 'Mid/Macro': return 'bg-blue-100 text-blue-800';
-    case 'Micro': return 'bg-green-100 text-green-800';
-    case 'Nano': return 'bg-gray-100 text-gray-800';
-    default: return 'bg-gray-100 text-gray-800';
-  }
 }

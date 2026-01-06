@@ -5,8 +5,12 @@ import pb from '@/lib/pocketbase';
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
 
 export async function POST(req: Request) {
+    let description = '';
+    let records: any[] = [];
+
     try {
-        const { description } = await req.json();
+        const body = await req.json();
+        description = body.description;
 
         if (!description) {
             return NextResponse.json({ error: 'Description is required' }, { status: 400 });
@@ -23,7 +27,7 @@ export async function POST(req: Request) {
         );
 
         // Fetch all categories from PocketBase
-        const records = await pb.collection('search_trends').getFullList({
+        records = await pb.collection('search_trends').getFullList({
             sort: 'main_category,sub_category',
         });
 
@@ -91,7 +95,57 @@ export async function POST(req: Request) {
         return NextResponse.json({ results });
 
     } catch (error: any) {
-        console.error('Error:', error);
-        return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+        console.error('Gemini API Error:', error);
+
+        // Fallback: Local keyword matching
+        console.log("Attempting local fallback...");
+
+        try {
+            const descLower = (await req.clone().json()).description.toLowerCase();
+
+            // Score records based on keyword matches
+            const scored = records.map(r => {
+                let score = 0;
+                // Match category names
+                if (descLower.includes(r.main_category.toLowerCase())) score += 3;
+                if (descLower.includes(r.sub_category.toLowerCase())) score += 5;
+
+                // Match queries
+                if (r.queries) {
+                    r.queries.forEach((q: string) => {
+                        if (descLower.includes(q.toLowerCase())) score += 1;
+                        // Initial word match
+                        q.split(' ').forEach(word => {
+                            if (word.length > 3 && descLower.includes(word.toLowerCase())) score += 0.1;
+                        });
+                    });
+                }
+                return { record: r, score };
+            });
+
+            // Sort by score
+            scored.sort((a, b) => b.score - a.score);
+
+            // Take top 2, or random if no score
+            let top2 = scored.filter(s => s.score > 0).slice(0, 2).map(s => s.record);
+
+            if (top2.length === 0) {
+                // Random fallback if absolutely no matches
+                top2 = records.sort(() => 0.5 - Math.random()).slice(0, 2);
+            }
+
+            const results = top2.map(record => ({
+                category: `${record.main_category} > ${record.sub_category}`,
+                queries: record.queries,
+                main_category: record.main_category,
+                sub_category: record.sub_category
+            }));
+
+            return NextResponse.json({ results, isFallback: true });
+
+        } catch (fallbackError) {
+            console.error('Fallback failed:', fallbackError);
+            return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+        }
     }
 }
