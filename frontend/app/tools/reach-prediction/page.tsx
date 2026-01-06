@@ -132,7 +132,7 @@ export default function ReachPredictionPage() {
                     {/* Chart */}
                     <Card className="flex-1 min-h-0 flex flex-col" noPadding>
                         <CardHeader className="py-3 px-4 flex-none">
-                            <CardTitle className="flex items-center gap-2 text-base">
+                            <CardTitle className="flex items-center gap-2 text-base text-gray-900">
                                 <TrendingUp size={16} className="text-[var(--color-primary)]" />
                                 Reach Trend & Prediction
                             </CardTitle>
