@@ -10,12 +10,14 @@ import {
     Settings as SettingsIcon,
     ChevronDown,
     ChevronRight,
-    Menu
+    Menu,
+    TrendingUp
 } from 'lucide-react';
 
 export const Sidebar = () => {
     const pathname = usePathname();
     const [isProjectsOpen, setIsProjectsOpen] = useState(false);
+    const [isToolsOpen, setIsToolsOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
@@ -23,6 +25,7 @@ export const Sidebar = () => {
     // Auto-expand menus if active
     React.useEffect(() => {
         if (pathname.startsWith('/projects')) setIsProjectsOpen(true);
+        if (pathname.startsWith('/tools')) setIsToolsOpen(true);
         if (pathname.startsWith('/settings')) setIsSettingsOpen(true);
     }, [pathname]);
 
@@ -139,6 +142,40 @@ export const Sidebar = () => {
                                         href="/projects/completed"
                                         label="Completed Campaign"
                                         active={pathname.startsWith('/projects/completed')}
+                                    />
+                                </div>
+                            )
+                        )}
+                    </div>
+
+                    <div className="mt-2">
+                        <button
+                            onClick={() => {
+                                if (!isExpanded) setIsExpanded(true);
+                                setIsToolsOpen(!isToolsOpen);
+                            }}
+                            className={`w-full flex items-center px-4 py-3 mb-1 text-sm font-medium rounded-lg transition-colors overflow-hidden whitespace-nowrap
+                            ${false
+                                    ? 'bg-[var(--color-primary)] text-white'
+                                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`}
+                            title={!isExpanded ? "Tools" : ""}
+                        >
+                            <TrendingUp size={20} className={`min-w-[20px] ${isExpanded ? 'mr-3' : 'mx-auto'}`} />
+                            {isExpanded && (
+                                <>
+                                    <span className="flex-1 text-left">Tools</span>
+                                    {isToolsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                </>
+                            )}
+                        </button>
+
+                        {(isToolsOpen || !isExpanded) && (
+                            isExpanded && isToolsOpen && (
+                                <div className="mt-1 mb-2 space-y-1">
+                                    <SubNavItem
+                                        href="/tools/reach-prediction"
+                                        label="Reach Prediction"
+                                        active={pathname === '/tools/reach-prediction'}
                                     />
                                 </div>
                             )
