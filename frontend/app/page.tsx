@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Users, UserCheck, UserMinus, Trash2, Loader2, Folder, CheckCircle } from 'lucide-react';
+import { Plus, Users, UserCheck, UserMinus, Trash2, Loader2, Folder, CheckCircle, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
@@ -18,6 +18,7 @@ export default function Home() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(''); // 'analyzing' | 'searching' | 'saving'
+  const [errorMessage, setErrorMessage] = useState('');
 
   const [formData, setFormData] = useState({
     campaignName: '',
@@ -41,6 +42,7 @@ export default function Home() {
 
     setLoading(true);
     setLoadingStep('analyzing');
+    setErrorMessage('');
 
     try {
       // 1. Analyze Prompt using Gemini to get Categories
@@ -179,7 +181,8 @@ export default function Home() {
 
     } catch (error) {
       console.error("Campaign Creation Failed:", error);
-      alert("Failed to create campaign. Check console for details.");
+      console.error("Campaign Creation Failed:", error);
+      setErrorMessage("Failed to create campaign. " + (error instanceof Error ? error.message : "Unknown error"));
       setLoading(false);
       setLoadingStep('');
     }
@@ -418,6 +421,12 @@ export default function Home() {
       >
         {/* DEBUG: Remove later */}
         <div className="text-xs text-gray-400 mb-2">Debug: Loading state = {loading.toString()}</div>
+        {errorMessage && (
+          <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2">
+            <AlertCircle size={16} />
+            {errorMessage}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             label="Campaign Name"
