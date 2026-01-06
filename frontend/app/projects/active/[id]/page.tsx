@@ -6,6 +6,7 @@ import { Pencil, Save, X, Instagram, ExternalLink, Trash2, CheckCircle } from 'l
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Modal } from '@/components/ui/modal'; // Reuse existing Modal
 import PocketBase from 'pocketbase';
 
 const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
@@ -46,49 +47,84 @@ export default function CampaignDetails() {
 
     const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+    // Custom Modal State
+    const [modalConfig, setModalConfig] = useState<{
+        isOpen: boolean;
+        type: 'alert' | 'confirm';
+        title: string;
+        message: string;
+        onConfirm?: () => void;
+    }>({ isOpen: false, type: 'alert', title: '', message: '' });
+
+    const showAlert = (title: string, message: string) => {
+        setModalConfig({ isOpen: true, type: 'alert', title, message });
+    };
+
+    const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+        setModalConfig({ isOpen: true, type: 'confirm', title, message, onConfirm });
+    };
+
+    const handleModalClose = () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+    };
+
+    const handleModalConfirm = () => {
+        if (modalConfig.onConfirm) modalConfig.onConfirm();
+        handleModalClose();
+    };
+
     const handleComplete = async () => {
-        if (confirm("Are you sure you want to complete this campaign? It will be moved to the Completed Projects list.")) {
-            try {
-                await pb.collection('campaigns').update(id, {
-                    status: 'Completed',
-                    completed_at: new Date().toISOString()
-                });
-                router.push('/projects/completed');
-            } catch (err) {
-                console.error("Failed to complete campaign:", err);
-                alert("Failed to update status.");
+        showConfirm(
+            "Complete Campaign",
+            "Are you sure you want to complete this campaign? It will be moved to the Completed Projects list.",
+            async () => {
+                try {
+                    await pb.collection('campaigns').update(id, {
+                        status: 'Completed',
+                        completed_at: new Date().toISOString()
+                    });
+                    router.push('/projects/completed');
+                } catch (err) {
+                    console.error("Failed to complete campaign:", err);
+                    showAlert("Error", "Failed to update status.");
+                }
             }
-        }
+        );
     };
 
     const handleAnalyze = async () => {
-        if (data.length === 0) return alert("No candidates to analyze.");
-        if (!confirm(`Analyze ${data.length} candidates? This will scrape recent videos for detailed metrics (ER, Views, Reach). This may take a minute.`)) return;
+        if (data.length === 0) return showAlert("Info", "No candidates to analyze.");
 
-        setIsAnalyzing(true);
-        try {
-            // Prepare payload
-            const candidates = data.map(d => ({
-                id: d.id,
-                username: d.tiktok || d.instagram || d.kol_name // robust fallback
-            }));
+        showConfirm(
+            "Start Analysis",
+            `Analyze ${data.length} candidates? This will scrape recent videos for detailed metrics (ER, Views, Reach). This may take a minute.`,
+            async () => {
+                setIsAnalyzing(true);
+                try {
+                    // Prepare payload
+                    const candidates = data.map(d => ({
+                        id: d.id,
+                        username: d.tiktok || d.instagram || d.kol_name // robust fallback
+                    }));
 
-            const res = await fetch('/api/analyze-campaign', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ candidates })
-            });
+                    const res = await fetch('/api/analyze-campaign', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ candidates })
+                    });
 
-            if (!res.ok) throw new Error('Analysis failed');
+                    if (!res.ok) throw new Error('Analysis failed');
 
-            alert("Analysis Complete! Metrics updated.");
-            fetchCandidates(); // Refresh UI
-        } catch (err) {
-            console.error("Analysis Error:", err);
-            alert("An error occurred during analysis details.");
-        } finally {
-            setIsAnalyzing(false);
-        }
+                    showAlert("Success", "Analysis Complete! Metrics updated.");
+                    fetchCandidates(); // Refresh UI
+                } catch (err) {
+                    console.error("Analysis Error:", err);
+                    showAlert("Error", "An error occurred during analysis details.");
+                } finally {
+                    setIsAnalyzing(false);
+                }
+            }
+        );
     };
 
     const fetchCandidates = async () => {
@@ -183,14 +219,14 @@ export default function CampaignDetails() {
                 setEditForm(null);
             } catch (err) {
                 console.error("Failed to save edit:", err);
-                alert("Failed to save changes.");
+                showAlert("Error", "Failed to save changes.");
                 fetchCandidates(); // Revert
             }
         }
     };
 
     const trashCandidate = async (recordId: string) => {
-        if (confirm('Are you sure you want to remove this candidate?')) {
+        showConfirm("Remove Candidate", "Are you sure you want to remove this candidate?", async () => {
             try {
                 // Optimistic remove
                 setData(data.filter(i => i.id !== recordId));
@@ -202,7 +238,7 @@ export default function CampaignDetails() {
                 console.error("Failed to trash:", err);
                 fetchCandidates();
             }
-        }
+        });
     };
 
     const handleEditChange = (field: keyof KOLRecord, value: any) => {
@@ -493,6 +529,26 @@ export default function CampaignDetails() {
                     </div>
                 </CardContent>
             </Card>
+
+            <Modal
+                isOpen={modalConfig.isOpen}
+                onClose={handleModalClose}
+                title={modalConfig.title}
+            >
+                <div className="space-y-4">
+                    <p className="text-gray-700">{modalConfig.message}</p>
+                    <div className="flex justify-end gap-2">
+                        {modalConfig.type === 'confirm' && (
+                            <Button variant="outline" onClick={handleModalClose}>
+                                Cancel
+                            </Button>
+                        )}
+                        <Button onClick={handleModalConfirm}>
+                            {modalConfig.type === 'confirm' ? 'Confirm' : 'OK'}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }
