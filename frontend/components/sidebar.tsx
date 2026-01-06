@@ -72,7 +72,7 @@ export const Sidebar = () => {
             {/* Sidebar Container */}
             <div className={`
                 fixed inset-y-0 left-0 z-40 h-full bg-[#111827] border-r border-gray-800 
-                transform transition-all duration-300 ease-in-out text-left flex flex-col
+                transform transition-all duration-300 ease-in-out text-left flex flex-col shrink-0
                 ${isMobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full'}
                 md:relative md:translate-x-0 
                 ${isExpanded ? 'md:w-64' : 'md:w-20'} 
