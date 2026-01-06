@@ -539,7 +539,7 @@ export default function CampaignDetails() {
                     <p className="text-gray-700">{modalConfig.message}</p>
                     <div className="flex justify-end gap-2">
                         {modalConfig.type === 'confirm' && (
-                            <Button variant="outline" onClick={handleModalClose} className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 hover:border-red-300">
+                            <Button variant="danger-outline" onClick={handleModalClose}>
                                 Cancel
                             </Button>
                         )}
