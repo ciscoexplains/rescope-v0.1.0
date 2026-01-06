@@ -1,0 +1,112 @@
+--- Collection Schema ---
+{
+  "id": "pbc_345596043",
+  "listRule": null,
+  "viewRule": null,
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null,
+  "name": "search_trends",
+  "type": "base",
+  "fields": [
+    {
+      "autogeneratePattern": "[a-z0-9]{15}",
+      "hidden": false,
+      "id": "text3208210256",
+      "max": 15,
+      "min": 15,
+      "name": "id",
+      "pattern": "^[a-z0-9]+$",
+      "presentable": false,
+      "primaryKey": true,
+      "required": true,
+      "system": true,
+      "type": "text"
+    },
+    {
+      "autogeneratePattern": "",
+      "hidden": false,
+      "id": "text3748530356",
+      "max": 0,
+      "min": 0,
+      "name": "main_category",
+      "pattern": "",
+      "presentable": false,
+      "primaryKey": false,
+      "required": true,
+      "system": false,
+      "type": "text"
+    },
+    {
+      "autogeneratePattern": "",
+      "hidden": false,
+      "id": "text3169056664",
+      "max": 0,
+      "min": 0,
+      "name": "sub_category",
+      "pattern": "",
+      "presentable": false,
+      "primaryKey": false,
+      "required": true,
+      "system": false,
+      "type": "text"
+    },
+    {
+      "hidden": false,
+      "id": "json2331527026",
+      "maxSize": 0,
+      "name": "queries",
+      "presentable": false,
+      "required": false,
+      "system": false,
+      "type": "json"
+    }
+  ],
+  "indexes": [],
+  "created": "2026-01-04 05:20:03.579Z",
+  "updated": "2026-01-04 05:20:03.579Z",
+  "system": false
+}
+
+--- First Record ---
+{
+  "items": [
+    {
+      "collectionId": "pbc_345596043",
+      "collectionName": "search_trends",
+      "id": "9xk79rvm6k3c6nh",
+      "main_category": "Family & Relationships",
+      "queries": [
+        "rekomendasi studio foto keluarga jakarta",
+        "ide outfit foto keluarga indoor",
+        "tempat wisata keluarga ramah anak bandung",
+        "restoran keluarga ada playground di jakarta",
+        "ide games kumpul keluarga lebaran",
+        "cara mengatasi konflik mertua dan menantu",
+        "tips mengatur keuangan keluarga muda",
+        "asuransi kesehatan keluarga terbaik 2025",
+        "rekomendasi mobil keluarga irit bbm",
+        "menu masakan sehari-hari untuk keluarga",
+        "cara membuat kartu keluarga online",
+        "syarat pindah kk terbaru 2025",
+        "paket liburan keluarga murah ke bali",
+        "hotel ramah anak di puncak bogor",
+        "biaya jasa foto keluarga outdoor",
+        "ide kado untuk ibu mertua",
+        "tips bonding dengan anak remaja",
+        "cara menghadapi toxic family member",
+        "aplikasi pengatur jadwal keluarga",
+        "tempat camping keluarga di sentul",
+        "rekomendasi villa keluarga di batu malang",
+        "cara mendidik anak era digital",
+        "komunitas parenting ayah indonesia",
+        "tips menjaga keharmonisan rumah tangga"
+      ],
+      "sub_category": "Family"
+    }
+  ],
+  "page": 1,
+  "perPage": 1,
+  "totalItems": 41,
+  "totalPages": 41
+}
