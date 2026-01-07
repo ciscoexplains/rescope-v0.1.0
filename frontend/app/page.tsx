@@ -244,8 +244,10 @@ export default function Home() {
       const items = recentCandidates.items;
 
       // ER Calc
-      const totalER = items.reduce((sum, item) => sum + (item.er || 0), 0);
-      const avgER = items.length > 0 ? (totalER / items.length).toFixed(1) + '%' : '0.0%';
+      // ER Calc
+      const validERItems = items.filter((item: any) => (item.er || 0) > 0);
+      const totalER = validERItems.reduce((sum: number, item: any) => sum + (item.er || 0), 0);
+      const avgER = validERItems.length > 0 ? (totalER / validERItems.length).toFixed(1) + '%' : '0.0%';
 
       // Frequency Counters
       const catCount: Record<string, number> = {};

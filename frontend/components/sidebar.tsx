@@ -19,6 +19,7 @@ export const Sidebar = () => {
     const pathname = usePathname();
     const [isProjectsOpen, setIsProjectsOpen] = useState(false);
     const [isToolsOpen, setIsToolsOpen] = useState(false);
+    const [isDatabasesOpen, setIsDatabasesOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
@@ -27,6 +28,7 @@ export const Sidebar = () => {
     React.useEffect(() => {
         if (pathname.startsWith('/projects')) setIsProjectsOpen(true);
         if (pathname.startsWith('/tools')) setIsToolsOpen(true);
+        if (pathname.startsWith('/databases')) setIsDatabasesOpen(true);
         if (pathname.startsWith('/settings')) setIsSettingsOpen(true);
     }, [pathname]);
 
@@ -183,12 +185,44 @@ export const Sidebar = () => {
                         )}
                     </div>
 
-                    <NavItem
-                        href="/databases"
-                        icon={Database}
-                        label="Databases"
-                        active={pathname.startsWith('/databases')}
-                    />
+                    <div className="mt-2">
+                        <button
+                            onClick={() => {
+                                if (!isExpanded) setIsExpanded(true);
+                                setIsDatabasesOpen(!isDatabasesOpen);
+                            }}
+                            className={`w-full flex items-center px-4 py-3 mb-1 text-sm font-medium rounded-lg transition-colors overflow-hidden whitespace-nowrap
+                            ${false
+                                    ? 'bg-[var(--color-primary)] text-white'
+                                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`}
+                            title={!isExpanded ? "Databases" : ""}
+                        >
+                            <Database size={20} className={`min-w-[20px] ${isExpanded ? 'mr-3' : 'mx-auto'}`} />
+                            {isExpanded && (
+                                <>
+                                    <span className="flex-1 text-left">Databases</span>
+                                    {isDatabasesOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                </>
+                            )}
+                        </button>
+
+                        {(isDatabasesOpen || !isExpanded) && (
+                            isExpanded && isDatabasesOpen && (
+                                <div className="mt-1 mb-2 space-y-1">
+                                    <SubNavItem
+                                        href="/databases/candidates"
+                                        label="Candidates"
+                                        active={pathname === '/databases/candidates'}
+                                    />
+                                    <SubNavItem
+                                        href="/databases/search-trends"
+                                        label="Search Trends"
+                                        active={pathname === '/databases/search-trends'}
+                                    />
+                                </div>
+                            )
+                        )}
+                    </div>
 
                     <div className="mt-2">
                         <button
