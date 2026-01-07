@@ -11,7 +11,8 @@ import {
     ChevronDown,
     ChevronRight,
     Menu,
-    TrendingUp
+    TrendingUp,
+    Database
 } from 'lucide-react';
 
 export const Sidebar = () => {
@@ -181,6 +182,13 @@ export const Sidebar = () => {
                             )
                         )}
                     </div>
+
+                    <NavItem
+                        href="/databases"
+                        icon={Database}
+                        label="Databases"
+                        active={pathname.startsWith('/databases')}
+                    />
 
                     <div className="mt-2">
                         <button
