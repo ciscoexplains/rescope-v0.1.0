@@ -37,6 +37,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
                 }
             } catch (error) {
                 console.error('Auth check error:', error);
+                // Fail safe: Redirect to login if auth check fails completely
+                if (pathname !== '/login') {
+                    router.replace('/login');
+                }
             } finally {
                 setLoading(false);
             }
