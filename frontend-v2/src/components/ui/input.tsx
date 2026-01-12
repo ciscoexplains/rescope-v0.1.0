@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '@/lib/utils';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string;
@@ -9,28 +10,26 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     ({ className = '', label, error, fullWidth = false, ...props }, ref) => {
         return (
-            <div className={`${fullWidth ? 'w-full' : ''} mb-4`}>
+            <div className={cn("mb-4", fullWidth && "w-full")}>
                 {label && (
-                    <label className="block text-sm font-medium text-[var(--color-text-main)] mb-1">
+                    <label className="block text-sm font-medium text-foreground mb-1">
                         {label}
                     </label>
                 )}
                 <input
                     ref={ref}
-                    className={`
-            block rounded-lg border-gray-300 bg-white border outline-none
-            focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]
-            disabled:bg-gray-100 disabled:cursor-not-allowed
-            px-4 py-2 text-[var(--color-text-main)] placeholder-gray-400
-            transition-all duration-200
-            ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}
-            ${fullWidth ? 'w-full' : ''}
-            ${className}
-          `}
+                    className={cn(
+                        "block rounded-lg border border-input bg-background px-4 py-2 text-foreground shadow-sm transition-colors",
+                        "file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground",
+                        "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                        error && "border-destructive focus-visible:ring-destructive",
+                        fullWidth && "w-full",
+                        className
+                    )}
                     {...props}
                 />
                 {error && (
-                    <p className="mt-1 text-sm text-red-500">{error}</p>
+                    <p className="mt-1 text-sm text-destructive">{error}</p>
                 )}
             </div>
         );
