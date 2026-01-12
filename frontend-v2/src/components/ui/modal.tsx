@@ -47,12 +47,12 @@ export const Modal: React.FC<ModalProps> = ({
                 className={`relative w-full ${width} transition-transform transform scale-100`}
                 onClick={(e) => e.stopPropagation()}
             >
-                <Card className="max-h-[90vh] flex flex-col" noPadding>
-                    <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                        {title && <h3 className="text-lg font-semibold text-[var(--color-text-main)]">{title}</h3>}
+                <Card className="max-h-[90vh] flex flex-col bg-card border-border shadow-2xl" noPadding>
+                    <div className="flex items-center justify-between p-4 border-b border-border">
+                        {title && <h3 className="text-lg font-semibold text-foreground">{title}</h3>}
                         <button
                             onClick={onClose}
-                            className="p-1 rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+                            className="p-1 rounded-full hover:bg-muted text-muted-foreground transition-colors"
                         >
                             <X size={20} />
                         </button>

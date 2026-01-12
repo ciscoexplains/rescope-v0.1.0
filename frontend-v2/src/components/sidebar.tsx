@@ -12,7 +12,8 @@ import {
     ChevronRight,
     Menu,
     TrendingUp,
-    Database
+    Database,
+    Briefcase
 } from 'lucide-react';
 
 export const Sidebar = () => {
@@ -122,12 +123,12 @@ export const Sidebar = () => {
                             ${false // We handle active state in sub-items usually, or parent if implemented
                                     ? 'bg-[var(--color-primary)] text-white'
                                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`}
-                            title={!isExpanded ? "Projects" : ""}
+                            title={!isExpanded ? "Workdesk" : ""}
                         >
-                            <Folder size={20} className={`min-w-[20px] ${isExpanded ? 'mr-3' : 'mx-auto'}`} />
+                            <Briefcase size={20} className={`min-w-[20px] ${isExpanded ? 'mr-3' : 'mx-auto'}`} />
                             {isExpanded && (
                                 <>
-                                    <span className="flex-1 text-left">Projects</span>
+                                    <span className="flex-1 text-left">Workdesk</span>
                                     {isProjectsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                 </>
                             )}
@@ -137,15 +138,11 @@ export const Sidebar = () => {
                             isExpanded && isProjectsOpen && (
                                 <div className="mt-1 mb-2 space-y-1">
                                     <SubNavItem
-                                        href="/projects/active"
+                                        href="/workdesk"
                                         label="Active Campaign"
-                                        active={pathname.startsWith('/projects/active')}
+                                        active={pathname.startsWith('/workdesk')}
                                     />
-                                    <SubNavItem
-                                        href="/projects/completed"
-                                        label="Completed Campaign"
-                                        active={pathname.startsWith('/projects/completed')}
-                                    />
+                                    {/* Link to completed projects if we had a separate page */}
                                 </div>
                             )
                         )}

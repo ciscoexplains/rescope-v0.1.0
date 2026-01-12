@@ -1,9 +1,8 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Loader2, Search, Plus } from 'lucide-react';
+import { Loader2, Search, Plus, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
 interface TikTokCandidate {
@@ -16,12 +15,18 @@ interface TikTokCandidate {
     tier: string;
     status: string;
     er: number;
+    campaign_id?: string;
 }
 
-export default function TikTokCandidatesTable() {
+interface TikTokCandidatesTableProps {
+    campaignId?: string;
+}
+
+export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTableProps) {
     const [candidates, setCandidates] = useState<TikTokCandidate[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         fetchCandidates();
@@ -29,17 +34,22 @@ export default function TikTokCandidatesTable() {
         const channel = supabase
             .channel('candidates_tiktok_changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'candidates_tiktok' }, (payload) => {
+                // If campaignId is provided, filter events
+                if (campaignId && (payload.new as any).campaign_id !== campaignId) return;
+
                 if (payload.eventType === 'INSERT') {
                     setCandidates((prev) => [payload.new as TikTokCandidate, ...prev]);
-                    toast.success("New candidate added");
                 }
                 if (payload.eventType === 'UPDATE') {
                     setCandidates((prev) => prev.map((item) => item.id === payload.new.id ? payload.new as TikTokCandidate : item));
-                    toast.success("Candidate updated");
                 }
                 if (payload.eventType === 'DELETE') {
                     setCandidates((prev) => prev.filter((item) => item.id !== payload.old.id));
-                    toast.success("Candidate deleted");
+                    setSelectedIds(prev => {
+                        const next = new Set(prev);
+                        next.delete(payload.old.id);
+                        return next;
+                    });
                 }
             })
             .subscribe();
@@ -47,23 +57,95 @@ export default function TikTokCandidatesTable() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [campaignId]);
 
     const fetchCandidates = async () => {
+        setLoading(true);
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('candidates_tiktok')
                 .select('*')
                 .order('created_at', { ascending: false });
+
+            if (campaignId) {
+                query = query.eq('campaign_id', campaignId);
+            }
+
+            const { data, error } = await query;
 
             if (error) throw error;
             setCandidates(data as TikTokCandidate[]);
         } catch (error: any) {
             console.error("Error fetching candidates:", error);
-            toast.error("Failed to load candidates");
+            // toast.error("Failed to load candidates");
         } finally {
             setLoading(false);
         }
+    };
+
+    const updateStatus = async (id: string, newStatus: string) => {
+        const { error } = await supabase
+            .from('candidates_tiktok')
+            .update({ status: newStatus })
+            .eq('id', id);
+
+        if (error) toast.error('Failed to update status');
+        else toast.success('Status updated');
+    };
+
+    const deleteCandidate = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this candidate?')) return;
+
+        const { error } = await supabase
+            .from('candidates_tiktok')
+            .delete()
+            .eq('id', id);
+
+        if (error) toast.error('Failed to delete candidate');
+        else {
+            toast.success('Candidate deleted');
+            setSelectedIds(prev => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+            });
+        }
+    };
+
+    const bulkDelete = async () => {
+        if (selectedIds.size === 0) return;
+        if (!confirm(`Are you sure you want to delete ${selectedIds.size} candidates?`)) return;
+
+        const idsToDelete = Array.from(selectedIds);
+        const { error } = await supabase
+            .from('candidates_tiktok')
+            .delete()
+            .in('id', idsToDelete);
+
+        if (error) toast.error('Failed to delete candidates');
+        else {
+            toast.success(`${idsToDelete.length} candidates deleted`);
+            setSelectedIds(new Set());
+            // Realtime subscription should handle removal from UI, but we can optimistically update too if needed
+            // setCandidates(prev => prev.filter(c => !selectedIds.has(c.id)));
+        }
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === filteredCandidates.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filteredCandidates.map(c => c.id)));
+        }
+    };
+
+    const toggleSelect = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
     };
 
     const filteredCandidates = candidates.filter(candidate => {
@@ -94,18 +176,31 @@ export default function TikTokCandidatesTable() {
                         className="pl-9 w-full sm:w-64 bg-background border-input text-foreground"
                     />
                 </div>
-                <div className="flex gap-2">
-                    <button className="flex items-center gap-2 px-3 py-1.5 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm">
-                        <Plus size={16} />
-                        Add Candidate
-                    </button>
-                </div>
+                {selectedIds.size > 0 && (
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={bulkDelete}
+                        className="gap-2"
+                    >
+                        <Trash2 size={16} />
+                        Delete Selected ({selectedIds.size})
+                    </Button>
+                )}
             </div>
 
             <div className="flex-1 overflow-auto">
                 <table className="w-full text-sm text-left text-foreground">
                     <thead className="text-xs text-muted-foreground uppercase bg-muted/50 sticky top-0 z-10">
                         <tr>
+                            <th className="px-6 py-3 w-[40px]">
+                                <input
+                                    type="checkbox"
+                                    className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                                    checked={filteredCandidates.length > 0 && selectedIds.size === filteredCandidates.length}
+                                    onChange={toggleSelectAll}
+                                />
+                            </th>
                             <th className="px-6 py-3">Name</th>
                             <th className="px-6 py-3">Username</th>
                             <th className="px-6 py-3">Followers</th>
@@ -119,6 +214,14 @@ export default function TikTokCandidatesTable() {
                     <tbody className="divide-y divide-border">
                         {filteredCandidates.map((candidate) => (
                             <tr key={candidate.id} className="bg-card hover:bg-muted/50 transition-colors">
+                                <td className="px-6 py-4">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                                        checked={selectedIds.has(candidate.id)}
+                                        onChange={() => toggleSelect(candidate.id)}
+                                    />
+                                </td>
                                 <td className="px-6 py-4 font-medium text-foreground">{candidate.kol_name}</td>
                                 <td className="px-6 py-4 text-muted-foreground">{candidate.username}</td>
                                 <td className="px-6 py-4 text-muted-foreground">{candidate.tt_followers?.toLocaleString()}</td>
@@ -139,21 +242,34 @@ export default function TikTokCandidatesTable() {
                                 </td>
                                 <td className="px-6 py-4 text-muted-foreground">{candidate.er}%</td>
                                 <td className="px-6 py-4">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium 
-                                        ${candidate.status === 'New' ? 'bg-blue-900/30 text-blue-400' :
-                                            candidate.status === 'Reviewed' ? 'bg-green-900/30 text-green-400' :
-                                                'bg-zinc-800 text-zinc-400'}`}>
-                                        {candidate.status}
-                                    </span>
+                                    <select
+                                        value={candidate.status}
+                                        onChange={(e) => updateStatus(candidate.id, e.target.value)}
+                                        className={`px-2 py-1 rounded-full text-xs font-medium bg-transparent border-0 cursor-pointer
+                                        ${candidate.status === 'New' ? 'text-blue-400' :
+                                                candidate.status === 'Reviewed' ? 'text-green-400' :
+                                                    'text-zinc-400'}`}
+                                    >
+                                        <option value="New">New</option>
+                                        <option value="Reviewed">Reviewed</option>
+                                        <option value="Trashed">Trashed</option>
+                                    </select>
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                    <span className="text-muted-foreground text-xs cursor-pointer hover:text-foreground">...</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                        onClick={() => deleteCandidate(candidate.id)}
+                                    >
+                                        <Trash2 size={16} />
+                                    </Button>
                                 </td>
                             </tr>
                         ))}
                         {filteredCandidates.length === 0 && (
                             <tr>
-                                <td colSpan={8} className="px-6 py-8 text-center text-muted-foreground">
+                                <td colSpan={9} className="px-6 py-8 text-center text-muted-foreground">
                                     No candidates found.
                                 </td>
                             </tr>
