@@ -40,8 +40,8 @@ export const Sidebar = () => {
                 onClick={onClick}
                 className={`w-full flex items-center px-4 py-3 mb-1 text-sm font-medium rounded-lg transition-colors overflow-hidden whitespace-nowrap
           ${active
-                        ? 'bg-[var(--color-primary)] text-white'
-                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                     }`}
                 title={!isExpanded ? label : ''}
             >
@@ -56,8 +56,8 @@ export const Sidebar = () => {
             href={href}
             className={`block w-full py-2 text-sm transition-colors rounded-lg overflow-hidden whitespace-nowrap
         ${active
-                    ? 'text-[var(--color-primary)] font-semibold'
-                    : 'text-gray-500 hover:text-white hover:bg-gray-800'
+                    ? 'text-primary font-semibold'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                 }
         ${isExpanded ? 'pl-12 pr-4' : 'px-2 text-center text-[10px]'}
         `}
@@ -77,7 +77,7 @@ export const Sidebar = () => {
 
             {/* Sidebar Container */}
             <div className={`
-                fixed inset-y-0 left-0 z-40 h-full bg-[#111827] border-r border-gray-800 
+                fixed inset-y-0 left-0 z-40 h-full bg-card/95 backdrop-blur-md border-r border-border 
                 transform transition-all duration-300 ease-in-out text-left flex flex-col shrink-0
                 ${isMobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full'}
                 md:relative md:translate-x-0 
@@ -85,7 +85,7 @@ export const Sidebar = () => {
             `}>
 
                 {/* Header / Logo */}
-                <div className={`p-4 border-b border-gray-800 flex items-center h-16 ${isExpanded ? 'justify-between' : 'justify-center'}`}>
+                <div className={`p-4 border-b border-border flex items-center h-16 ${isExpanded ? 'justify-between' : 'justify-center'}`}>
                     {isExpanded ? (
                         <div className="flex items-center">
                             <span className="text-2xl font-bold text-white tracking-tight">
@@ -224,11 +224,6 @@ export const Sidebar = () => {
                                         label="Candidates"
                                         active={pathname === '/databases/candidates'}
                                     />
-                                    <SubNavItem
-                                        href="/databases/search-trends"
-                                        label="Search Trends"
-                                        active={pathname === '/databases/search-trends'}
-                                    />
                                 </div>
                             )
                         )}
@@ -282,7 +277,7 @@ export const Sidebar = () => {
                     </div>
                 </nav>
 
-                <div className="p-4 border-t border-gray-800">
+                <div className="p-4 border-t border-border">
                     {isExpanded ? (
                         <p className="text-xs text-center text-gray-500">© 2026 Re:noir Technology</p>
                     ) : (

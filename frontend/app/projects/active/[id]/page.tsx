@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Pencil, Save, X, Instagram, ExternalLink, Trash2, CheckCircle } from 'lucide-react';
+import { Pencil, Save, X, Instagram, ExternalLink, Trash2, CheckCircle, Download } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,55 @@ export default function CampaignDetails() {
     const [loading, setLoading] = useState(true);
 
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+    // Sorting State
+    const [sortConfig, setSortConfig] = useState<{ key: keyof KOLRecord | null; direction: 'asc' | 'desc' }>({
+        key: null,
+        direction: 'asc',
+    });
+
+    const tierOrder: Record<string, number> = {
+        'Unlisted': 0,
+        'Nano': 1,
+        'Micro': 2,
+        'Mid': 3,
+        'Mid/Macro': 3,
+        'Macro': 4,
+        'Mega': 5,
+        'Super': 6
+    };
+
+    const handleSort = (key: keyof KOLRecord) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedData = React.useMemo(() => {
+        if (!sortConfig.key) return data;
+
+        return [...data].sort((a, b) => {
+            const aValue = a[sortConfig.key!];
+            const bValue = b[sortConfig.key!];
+
+            if (sortConfig.key === 'tier') {
+                const aRank = tierOrder[aValue as string] || 0;
+                const bRank = tierOrder[bValue as string] || 0;
+                if (aRank < bRank) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aRank > bRank) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            }
+
+            if (aValue === null) return 1;
+            if (bValue === null) return -1;
+
+            if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }, [data, sortConfig]);
 
     // Custom Modal State
     const [modalConfig, setModalConfig] = useState<{
@@ -241,6 +290,58 @@ export default function CampaignDetails() {
         });
     };
 
+    const handleExport = () => {
+        if (sortedData.length === 0) return showAlert("Info", "No data to export.");
+
+        // Define Headers
+        const headers = [
+            "KOL ID", "Name", "Contact", "Contact Name", "Email",
+            "Instagram", "TikTok", "IG Followers", "TT Followers",
+            "Tier", "ER %", "Avg Views", "Verified", "Type",
+            "Category", "Grade", "Region", "Gender", "Age", "Religion"
+        ];
+
+        // Map Data to Rows
+        const rows = sortedData.map(r => [
+            r.kol_id,
+            `"${r.kol_name.replace(/"/g, '""')}"`, // Escape quotes
+            r.contact,
+            `"${r.contact_name.replace(/"/g, '""')}"`,
+            r.email,
+            r.instagram || '',
+            r.tiktok || '',
+            r.ig_followers,
+            r.tt_followers,
+            r.tier,
+            r.er,
+            r.avg_views,
+            r.is_verified ? 'Yes' : 'No',
+            r.type,
+            `"${r.categories.join(', ')}"`,
+            r.grade || '',
+            `"${r.region.join(', ')}"`,
+            r.gender,
+            r.age,
+            r.religion
+        ]);
+
+        // Combine into CSV String
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.join(','))
+        ].join('\n');
+
+        // Create Blob and Download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `${campaignName.replace(/\s+/g, '_')}_candidates.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const handleEditChange = (field: keyof KOLRecord, value: any) => {
         if (editForm) {
             setEditForm({ ...editForm, [field]: value });
@@ -261,6 +362,10 @@ export default function CampaignDetails() {
                     <p className="text-gray-700 mt-1">Manage and review KOLs for this campaign.</p>
                 </div>
                 <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleExport} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200">
+                        <Download size={16} className="mr-2" />
+                        Export CSV
+                    </Button>
                     <Button variant="outline" onClick={handleComplete} className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200">
                         <CheckCircle size={16} className="mr-2" />
                         Finish Campaign
@@ -291,7 +396,17 @@ export default function CampaignDetails() {
                                     <th className="px-4 py-3">Platforms</th>
                                     <th className="px-4 py-3">IG Followers</th>
                                     <th className="px-4 py-3">TT Followers</th>
-                                    <th className="px-4 py-3">Tier</th>
+                                    <th
+                                        className="px-4 py-3 cursor-pointer hover:bg-gray-100 select-none flex items-center gap-1"
+                                        onClick={() => handleSort('tier')}
+                                    >
+                                        Tier
+                                        {sortConfig.key === 'tier' && (
+                                            <span className="text-gray-500 text-[10px] ml-1">
+                                                {sortConfig.direction === 'asc' ? '▲' : '▼'}
+                                            </span>
+                                        )}
+                                    </th>
                                     <th className="px-4 py-3">ER %</th>
                                     <th className="px-4 py-3">Avg. Views</th>
                                     <th className="px-4 py-3">Verified</th>
@@ -305,7 +420,7 @@ export default function CampaignDetails() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {data.map((record) => {
+                                {sortedData.map((record) => {
                                     const isEditing = editingId === record.id;
                                     const display = isEditing && editForm ? editForm : record;
 

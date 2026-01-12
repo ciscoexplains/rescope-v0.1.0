@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import pb from '@/lib/pocketbase';
-import { Loader2, Save, X, Edit2, Plus, Trash2, Sparkles } from 'lucide-react';
+import { Loader2, Save, X, Edit2, Plus, Trash2, Sparkles, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { toast } from 'sonner';
@@ -23,11 +23,14 @@ export default function CandidatesTable() {
     const [candidates, setCandidates] = useState<Candidate[]>([]);
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
     const [editForm, setEditForm] = useState<Partial<Candidate>>({});
 
     // Create Modal State
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isCleanConfirmOpen, setIsCleanConfirmOpen] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [deleteId, setDeleteId] = useState<string | null>(null);
     const [duplicateIds, setDuplicateIds] = useState<string[]>([]);
     const [createForm, setCreateForm] = useState<Partial<Candidate>>({
         kol_name: '',
@@ -107,10 +110,18 @@ export default function CandidatesTable() {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this candidate?")) return;
+    const handleDelete = (id: string) => {
+        setDeleteId(id);
+        setIsDeleteConfirmOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteId) return;
+
         try {
-            await pb.collection('candidates').delete(id);
+            await pb.collection('candidates').delete(deleteId);
+            setIsDeleteConfirmOpen(false);
+            setDeleteId(null);
         } catch (error) {
             console.error("Error deleting candidate:", error);
             toast.error("Failed to delete candidate");
@@ -208,6 +219,14 @@ export default function CandidatesTable() {
         setCreateForm(prev => ({ ...prev, [field]: value }));
     };
 
+    const filteredCandidates = candidates.filter(candidate => {
+        const query = searchQuery.toLowerCase();
+        return (
+            candidate.kol_name?.toLowerCase().includes(query) ||
+            candidate.username?.toLowerCase().includes(query)
+        );
+    });
+
     if (loading) {
         return (
             <div className="flex-1 flex items-center justify-center">
@@ -218,12 +237,23 @@ export default function CandidatesTable() {
 
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden">
-            <div className="p-4 bg-white border-b flex justify-between items-center">
+            <div className="p-4 bg-white border-b flex flex-col sm:flex-row justify-between items-center gap-4">
                 <h3 className="font-medium text-gray-900">Candidates List</h3>
-                <div className="flex gap-2">
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <input
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search candidates..."
+                            className="pl-9 pr-4 py-2 w-full sm:w-64 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all duration-200 text-sm text-gray-900 placeholder-gray-400"
+                        />
+                    </div>
+
                     <button
                         onClick={handleCleanData}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm whitespace-nowrap"
                         title="Remove duplicates based on username"
                     >
                         <Sparkles size={16} />
@@ -231,7 +261,7 @@ export default function CandidatesTable() {
                     </button>
                     <button
                         onClick={() => setIsCreateModalOpen(true)}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-[var(--color-primary)] text-white rounded-md hover:opacity-90 transition-opacity text-sm"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-[var(--color-primary)] text-white rounded-md hover:opacity-90 transition-opacity text-sm whitespace-nowrap"
                     >
                         <Plus size={16} />
                         Add Candidate
@@ -255,7 +285,7 @@ export default function CandidatesTable() {
                         </tr>
                     </thead>
                     <tbody>
-                        {candidates.map((candidate) => (
+                        {filteredCandidates.map((candidate) => (
                             <tr key={candidate.id} className="bg-white border-b hover:bg-gray-50">
                                 {editingId === candidate.id ? (
                                     <>
@@ -395,10 +425,10 @@ export default function CandidatesTable() {
                             </tr>
                         ))}
 
-                        {candidates.length === 0 && (
+                        {filteredCandidates.length === 0 && (
                             <tr>
                                 <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
-                                    No candidates found in database.
+                                    {candidates.length === 0 ? "No candidates found in database." : "No candidates found matching your search."}
                                 </td>
                             </tr>
                         )}
@@ -526,6 +556,31 @@ export default function CandidatesTable() {
                             className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg"
                         >
                             Delete {duplicateIds.length} Duplicates
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal isOpen={isDeleteConfirmOpen} onClose={() => setIsDeleteConfirmOpen(false)} title="Delete Candidate">
+                <div className="space-y-4">
+                    <div className="p-4 bg-red-50 text-red-800 rounded-lg text-sm">
+                        ⚠️ This action cannot be undone.
+                    </div>
+                    <p className="text-gray-600">
+                        Are you sure you want to delete this candidate? This will permanently remove them from the database.
+                    </p>
+                    <div className="pt-4 flex justify-end gap-2">
+                        <button
+                            onClick={() => setIsDeleteConfirmOpen(false)}
+                            className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmDelete}
+                            className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg"
+                        >
+                            Delete Candidate
                         </button>
                     </div>
                 </div>
