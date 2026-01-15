@@ -173,19 +173,9 @@ export const Sidebar = () => {
                             isExpanded && isToolsOpen && (
                                 <div className="mt-1 mb-2 space-y-1">
                                     <SubNavItem
-                                        href="/tools/reach-prediction"
-                                        label="Reach Prediction"
-                                        active={pathname === '/tools/reach-prediction'}
-                                    />
-                                    <SubNavItem
-                                        href="/tools/kol-query"
-                                        label="KOL Query"
-                                        active={pathname === '/tools/kol-query'}
-                                    />
-                                    <SubNavItem
-                                        href="/tools/ig-analyzer"
-                                        label="IG Credibility"
-                                        active={pathname === '/tools/ig-analyzer'}
+                                        href="/tools/tiktok-scraper"
+                                        label="TikTok Scraper"
+                                        active={pathname === '/tools/tiktok-scraper'}
                                     />
                                 </div>
                             )

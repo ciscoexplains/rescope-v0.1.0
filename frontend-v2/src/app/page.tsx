@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import DashboardHeader from "@/components/DashboardHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import JoinCampaignCard from "@/components/user/JoinCampaignCard";
@@ -87,26 +88,28 @@ export default function Home() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {joinedCampaigns.map((item) => (
-              <Card key={item.id} className="hover:bg-accent/5 transition-colors cursor-pointer group">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="group-hover:text-primary transition-colors">
-                      {item.campaign.brand_name}
-                    </CardTitle>
-                    <span className="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-500 border border-green-500/20">
-                      {item.campaign.status}
-                    </span>
-                  </div>
-                  <CardDescription>
-                    Joined {new Date(item.joined_at).toLocaleDateString()}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Click to enter workdesk
-                  </p>
-                </CardContent>
-              </Card>
+              <Link key={item.id} href={`/workdesk/${item.campaign.id}`}>
+                <Card className="hover:bg-accent/5 transition-colors cursor-pointer group h-full">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <CardTitle className="group-hover:text-primary transition-colors">
+                        {item.campaign.brand_name}
+                      </CardTitle>
+                      <span className="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-500 border border-green-500/20">
+                        {item.campaign.status}
+                      </span>
+                    </div>
+                    <CardDescription>
+                      Joined {new Date(item.joined_at).toLocaleDateString()}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      Click to enter workdesk
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
           </div>
         )}

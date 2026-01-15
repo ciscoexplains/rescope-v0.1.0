@@ -5,6 +5,13 @@ import { supabase } from '@/lib/supabase';
 import { Loader2, Search, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface InstagramCandidate {
     id: string;
@@ -49,6 +56,16 @@ export default function InstagramCandidatesTable() {
         };
     }, []);
 
+    const updateStatus = async (id: string, newStatus: string) => {
+        const { error } = await supabase
+            .from('candidates_instagram')
+            .update({ status: newStatus })
+            .eq('id', id);
+
+        if (error) toast.error('Failed to update status');
+        else toast.success('Status updated');
+    };
+
     const fetchCandidates = async () => {
         try {
             const { data, error } = await supabase
@@ -85,13 +102,14 @@ export default function InstagramCandidatesTable() {
     return (
         <div className="flex flex-col h-full bg-card rounded-lg shadow-sm border border-border overflow-hidden">
             <div className="p-4 border-b border-border flex flex-col sm:flex-row justify-between items-center gap-4 bg-card">
-                <div className="flex items-center gap-2 relative w-full sm:w-auto">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                <div className="relative w-full sm:w-72">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 z-10 pointer-events-none" size={18} />
                     <Input
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search Instagram candidates..."
-                        className="pl-9 w-full sm:w-64 bg-background border-input text-foreground"
+                        containerClassName="mb-0"
+                        className="pl-10 h-10 w-full bg-secondary/30 border-secondary-foreground/10 text-foreground placeholder:text-muted-foreground/70 focus-visible:ring-primary/20 focus-visible:border-primary/50 transition-all rounded-xl hover:bg-secondary/50"
                     />
                 </div>
                 <div className="flex gap-2">
@@ -139,12 +157,22 @@ export default function InstagramCandidatesTable() {
                                 </td>
                                 <td className="px-6 py-4 text-muted-foreground">{candidate.er}%</td>
                                 <td className="px-6 py-4">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium 
-                                        ${candidate.status === 'New' ? 'bg-blue-900/30 text-blue-400' :
-                                            candidate.status === 'Reviewed' ? 'bg-green-900/30 text-green-400' :
-                                                'bg-zinc-800 text-zinc-400'}`}>
-                                        {candidate.status}
-                                    </span>
+                                    <Select
+                                        value={candidate.status}
+                                        onValueChange={(value) => updateStatus(candidate.id, value)}
+                                    >
+                                        <SelectTrigger className={`h-7 w-[100px] border-none bg-transparent text-xs font-medium focus:ring-0 focus:ring-offset-0 px-2
+                                            ${candidate.status === 'New' ? 'text-blue-400' :
+                                                candidate.status === 'Reviewed' ? 'text-green-400' :
+                                                    'text-zinc-400'}`}>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="New" className="text-blue-400">New</SelectItem>
+                                            <SelectItem value="Reviewed" className="text-green-400">Reviewed</SelectItem>
+                                            <SelectItem value="Trashed" className="text-zinc-400">Trashed</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <span className="text-muted-foreground text-xs cursor-pointer hover:text-foreground">...</span>

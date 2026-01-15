@@ -7,10 +7,10 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     fullWidth?: boolean;
 }
 
-export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-    ({ className = '', label, error, fullWidth = false, ...props }, ref) => {
+export const Input = React.forwardRef<HTMLInputElement, InputProps & { containerClassName?: string }>(
+    ({ className = '', label, error, fullWidth = false, containerClassName, ...props }, ref) => {
         return (
-            <div className={cn("mb-4", fullWidth && "w-full")}>
+            <div className={cn("mb-4", fullWidth && "w-full", containerClassName)}>
                 {label && (
                     <label className="block text-sm font-medium text-foreground mb-1">
                         {label}

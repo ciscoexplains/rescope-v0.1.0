@@ -4,6 +4,14 @@ import { Loader2, Search, Plus, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface TikTokCandidate {
     id: string;
@@ -16,6 +24,11 @@ interface TikTokCandidate {
     status: string;
     er: number;
     campaign_id?: string;
+    profile_url?: string;
+    is_verified?: boolean;
+    category?: string;
+    region?: string;
+    segment?: string;
 }
 
 interface TikTokCandidatesTableProps {
@@ -165,15 +178,16 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
     }
 
     return (
-        <div className="flex flex-col h-full bg-card rounded-lg shadow-sm border border-border overflow-hidden">
-            <div className="p-4 border-b border-border flex flex-col sm:flex-row justify-between items-center gap-4 bg-card">
-                <div className="flex items-center gap-2 relative w-full sm:w-auto">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+        <div className="flex flex-col h-full bg-card rounded-lg shadow-none border-none overflow-hidden bg-transparent">
+            <div className="p-4 flex flex-col sm:flex-row justify-between items-center gap-4 bg-transparent">
+                <div className="relative w-full sm:w-72">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 z-10 pointer-events-none" size={18} />
                     <Input
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search TikTok candidates..."
-                        className="pl-9 w-full sm:w-64 bg-background border-input text-foreground"
+                        containerClassName="mb-0"
+                        className="pl-10 h-10 w-full bg-white/5 border-none text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-0 focus-visible:bg-secondary/50 transition-all rounded-xl"
                     />
                 </div>
                 {selectedIds.size > 0 && (
@@ -189,46 +203,62 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
                 )}
             </div>
 
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-auto rounded-xl bg-secondary/10">
                 <table className="w-full text-sm text-left text-foreground">
-                    <thead className="text-xs text-muted-foreground uppercase bg-muted/50 sticky top-0 z-10">
+                    <thead className="text-xs text-muted-foreground uppercase bg-white/5 sticky top-0 z-10">
                         <tr>
                             <th className="px-6 py-3 w-[40px]">
-                                <input
-                                    type="checkbox"
-                                    className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                                <Checkbox
                                     checked={filteredCandidates.length > 0 && selectedIds.size === filteredCandidates.length}
-                                    onChange={toggleSelectAll}
+                                    onCheckedChange={() => toggleSelectAll()}
+                                    className="border-white/10 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                                 />
                             </th>
                             <th className="px-6 py-3">Name</th>
-                            <th className="px-6 py-3">Username</th>
+                            <th className="px-6 py-3">URL</th>
                             <th className="px-6 py-3">Followers</th>
                             <th className="px-6 py-3">Contact</th>
                             <th className="px-6 py-3">Tier</th>
+                            <th className="px-6 py-3">Details</th>
                             <th className="px-6 py-3">ER%</th>
                             <th className="px-6 py-3">Status</th>
                             <th className="px-6 py-3 text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-border">
+                    <tbody className="divide-y divide-white/5">
                         {filteredCandidates.map((candidate) => (
-                            <tr key={candidate.id} className="bg-card hover:bg-muted/50 transition-colors">
+                            <tr key={candidate.id} className="hover:bg-white/[0.02] transition-colors">
                                 <td className="px-6 py-4">
-                                    <input
-                                        type="checkbox"
-                                        className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                                    <Checkbox
                                         checked={selectedIds.has(candidate.id)}
-                                        onChange={() => toggleSelect(candidate.id)}
+                                        onCheckedChange={() => toggleSelect(candidate.id)}
+                                        className="border-white/10 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                                     />
                                 </td>
-                                <td className="px-6 py-4 font-medium text-foreground">{candidate.kol_name}</td>
-                                <td className="px-6 py-4 text-muted-foreground">{candidate.username}</td>
+                                <td className="px-6 py-4 font-medium text-foreground">
+                                    <div className="flex items-center gap-1">
+                                        {candidate.kol_name}
+                                        {candidate.is_verified && <span className="text-blue-500 text-[10px] bg-blue-500/10 px-1 rounded">Verified</span>}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-muted-foreground">
+                                    <a href={candidate.profile_url || `https://tiktok.com/@${candidate.username}`} target="_blank" className="hover:underline text-blue-500">
+                                        @{candidate.username}
+                                    </a>
+                                </td>
                                 <td className="px-6 py-4 text-muted-foreground">{candidate.tt_followers?.toLocaleString()}</td>
                                 <td className="px-6 py-4 text-muted-foreground">
-                                    <div className="flex flex-col text-xs">
-                                        <span>{candidate.contact}</span>
-                                        <span className="text-muted-foreground/70">{candidate.email}</span>
+                                    <div className="flex flex-col text-xs space-y-1">
+                                        {candidate.contact && (
+                                            <a href={`https://wa.me/${candidate.contact.replace(/\D/g, '')}`} target="_blank" className="hover:text-green-500 flex items-center gap-1">
+                                                📞 {candidate.contact}
+                                            </a>
+                                        )}
+                                        {candidate.email && (
+                                            <a href={`mailto:${candidate.email}`} className="hover:text-blue-500 flex items-center gap-1">
+                                                ✉️ {candidate.email}
+                                            </a>
+                                        )}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">
@@ -240,20 +270,31 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
                                         {candidate.tier}
                                     </span>
                                 </td>
+                                <td className="px-6 py-4 text-muted-foreground">
+                                    <div className="flex flex-col text-xs">
+                                        <span>Use: {candidate.segment || '-'}</span>
+                                        <span>Cat: {candidate.category || '-'}</span>
+                                        <span>Reg: {candidate.region || '-'}</span>
+                                    </div>
+                                </td>
                                 <td className="px-6 py-4 text-muted-foreground">{candidate.er}%</td>
                                 <td className="px-6 py-4">
-                                    <select
+                                    <Select
                                         value={candidate.status}
-                                        onChange={(e) => updateStatus(candidate.id, e.target.value)}
-                                        className={`px-2 py-1 rounded-full text-xs font-medium bg-transparent border-0 cursor-pointer
-                                        ${candidate.status === 'New' ? 'text-blue-400' :
-                                                candidate.status === 'Reviewed' ? 'text-green-400' :
-                                                    'text-zinc-400'}`}
+                                        onValueChange={(value) => updateStatus(candidate.id, value)}
                                     >
-                                        <option value="New">New</option>
-                                        <option value="Reviewed">Reviewed</option>
-                                        <option value="Trashed">Trashed</option>
-                                    </select>
+                                        <SelectTrigger className={`h-7 w-[100px] border-none bg-transparent text-xs font-medium focus:ring-0 focus:ring-offset-0 px-2
+                                            ${candidate.status === 'New' ? 'text-blue-400' :
+                                                candidate.status === 'Reviewed' ? 'text-green-400' :
+                                                    'text-zinc-400'}`}>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="New" className="text-blue-400">New</SelectItem>
+                                            <SelectItem value="Reviewed" className="text-green-400">Reviewed</SelectItem>
+                                            <SelectItem value="Trashed" className="text-zinc-400">Trashed</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <Button
