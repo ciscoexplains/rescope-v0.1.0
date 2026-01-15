@@ -211,6 +211,11 @@ export const Sidebar = () => {
                                         label="Candidates"
                                         active={pathname === '/databases/candidates'}
                                     />
+                                    <SubNavItem
+                                        href="/databases/tiktok-history"
+                                        label="TikTok History"
+                                        active={pathname === '/databases/tiktok-history'}
+                                    />
                                 </div>
                             )
                         )}
