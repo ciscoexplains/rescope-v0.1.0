@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 interface Campaign {
     id: string;
     brand_name: string;
+    description?: string;
     join_code: string;
     status: string;
     created_at: string;

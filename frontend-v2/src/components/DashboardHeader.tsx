@@ -6,11 +6,13 @@ import { useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function DashboardHeader({ title, children }: { title?: string, children?: React.ReactNode }) {
+export default function DashboardHeader({ title, children, customGreeting }: { title?: string, children?: React.ReactNode, customGreeting?: string }) {
     const [greeting, setGreeting] = useState('Hi, there');
     const router = useRouter();
 
     useEffect(() => {
+        if (customGreeting) return; // Skip if custom provided
+
         const getUser = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (user?.email) {
@@ -22,7 +24,7 @@ export default function DashboardHeader({ title, children }: { title?: string, c
             }
         };
         getUser();
-    }, []);
+    }, [customGreeting]);
 
     const handleLogout = async () => {
         try {
@@ -38,7 +40,7 @@ export default function DashboardHeader({ title, children }: { title?: string, c
     return (
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div>
-                <h1 className="text-2xl font-bold text-foreground">{greeting}</h1>
+                <h1 className="text-2xl font-bold text-foreground">{customGreeting || greeting}</h1>
                 {title && <p className="text-muted-foreground mt-1">{title}</p>}
             </div>
 

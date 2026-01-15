@@ -69,7 +69,10 @@ export default function CampaignWorkspace() {
 
     return (
         <div className="p-6 space-y-6">
-            <DashboardHeader title={`Workdesk: ${campaign.brand_name}`}>
+            <DashboardHeader
+                customGreeting={`Workdesk: ${campaign.brand_name}`}
+                title={campaign.description}
+            >
                 <Button variant="outline" onClick={handleFinish} className="gap-2">
                     <CheckCircle size={16} />
                     Finish Task

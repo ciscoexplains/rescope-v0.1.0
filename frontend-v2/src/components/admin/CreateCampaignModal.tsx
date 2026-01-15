@@ -40,7 +40,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                 .from('campaigns')
                 .insert({
                     brand_name: brandName,
-                    brand_description: brandDescription,
+                    description: brandDescription,
                     join_code: joinCode,
                     status: 'Active'
                 });
