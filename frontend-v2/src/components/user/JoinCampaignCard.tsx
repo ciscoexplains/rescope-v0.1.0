@@ -8,7 +8,11 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { ArrowRight, Loader2 } from 'lucide-react';
 
-export default function JoinCampaignCard() {
+interface JoinCampaignCardProps {
+    onJoinSuccess?: () => void;
+}
+
+export default function JoinCampaignCard({ onJoinSuccess }: JoinCampaignCardProps) {
     const [joinCode, setJoinCode] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -53,7 +57,9 @@ export default function JoinCampaignCard() {
 
             toast.success(`Successfully joined ${campaign.brand_name}!`);
             setJoinCode('');
-            // Optional: Refresh list of campaigns here
+            if (onJoinSuccess) {
+                onJoinSuccess();
+            }
         } catch (err: any) {
             console.error('Join error:', err);
             toast.error(err.message || 'Failed to join campaign');

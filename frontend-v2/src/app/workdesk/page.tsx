@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import useRouter from 'next/navigation'; // Mistake in import
+import { useRouter } from 'next/navigation';
 import DashboardHeader from "@/components/DashboardHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { supabase } from '@/lib/supabase';
@@ -57,7 +57,7 @@ export default function WorkdeskPage() {
             <DashboardHeader title="My Workdesk" />
 
             <div className="max-w-xl">
-                <JoinCampaignCard />
+                <JoinCampaignCard onJoinSuccess={fetchJoinedCampaigns} />
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
