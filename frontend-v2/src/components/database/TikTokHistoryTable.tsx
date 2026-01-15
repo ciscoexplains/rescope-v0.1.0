@@ -288,6 +288,26 @@ export default function TikTokHistoryTable() {
         }
     };
 
+    const handleMoveSuccess = async () => {
+        const selectedItems = getSelectedCandidates();
+        const idsToDelete = selectedItems.map(item => item.id).filter(Boolean);
+
+        if (idsToDelete.length > 0) {
+            const { error } = await supabase
+                .from('scraper_history_tiktok')
+                .delete()
+                .in('id', idsToDelete);
+
+            if (error) {
+                console.error("Error removing moved items from history:", error);
+                toast.error("Failed to remove moved items from history");
+            } else {
+                setSearchResults(prev => prev.filter(item => !idsToDelete.includes(item.id)));
+            }
+        }
+        setSelectedIndices(new Set());
+    };
+
     return (
         <div className="space-y-4">
             <div className="flex items-center gap-4 mb-4">
@@ -496,7 +516,7 @@ export default function TikTokHistoryTable() {
                 open={isMoveModalOpen}
                 onOpenChange={setIsMoveModalOpen}
                 candidates={getSelectedCandidates()}
-                onSuccess={() => setSelectedIndices(new Set())}
+                onSuccess={handleMoveSuccess}
             />
 
             <AlertDialog

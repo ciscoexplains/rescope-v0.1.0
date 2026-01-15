@@ -405,7 +405,24 @@ export default function TikTokScraperPage() {
         }
     };
 
-    const handleMoveSuccess = () => {
+    const handleMoveSuccess = async () => {
+        const selectedItems = getSelectedCandidates();
+        const idsToDelete = selectedItems.map(item => item.id).filter(Boolean);
+
+        if (idsToDelete.length > 0) {
+            const { error } = await supabase
+                .from('scraper_history_tiktok')
+                .delete()
+                .in('id', idsToDelete);
+
+            if (error) {
+                console.error("Error removing moved items from history:", error);
+                toast.error("Failed to remove moved items from history");
+            } else {
+                setSearchResults(prev => prev.filter(item => !idsToDelete.includes(item.id)));
+                // Toast is already shown by modal for the move.
+            }
+        }
         setSelectedIndices(new Set());
     };
 
