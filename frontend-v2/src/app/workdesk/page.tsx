@@ -57,11 +57,8 @@ export default function WorkdeskPage() {
             <DashboardHeader title="My Workdesk" />
 
             <div className="max-w-xl">
-                <JoinCampaignCard onJoinSuccess={(newCampaign) => {
-                    if (newCampaign) {
-                        setJoinedCampaigns(prev => [newCampaign, ...prev]);
-                    }
-                    fetchJoinedCampaigns(); // Still fetch to ensure consistency
+                <JoinCampaignCard onJoinSuccess={() => {
+                    window.location.reload();
                 }} />
             </div>
 
