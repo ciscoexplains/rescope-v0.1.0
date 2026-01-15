@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Loader2, Search, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Search, Plus, Trash2, Download, FileSpreadsheet, Copy } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
+import * as XLSX from 'xlsx';
 import {
     Select,
     SelectContent,
@@ -12,6 +13,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface TikTokCandidate {
     id: string;
@@ -152,6 +161,103 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
         }
     };
 
+    const handleExportCSV = () => {
+        if (filteredCandidates.length === 0) {
+            toast.error("No candidates to export");
+            return;
+        }
+
+        const headers = [
+            "Name", "Username", "Followers", "Likes", "Videos", "Avg Views", "ER", "Contact", "Email", "Profile URL", "Tier", "Category", "Region", "Segment", "Status"
+        ];
+
+        const csvContent = [
+            headers.join(","),
+            ...filteredCandidates.map(c => [
+                `"${c.kol_name || ''}"`,
+                `"${c.username || ''}"`,
+                c.tt_followers || 0,
+                c.total_likes || 0,
+                c.total_videos || 0,
+                c.avg_views || 0,
+                `${c.er || 0}%`,
+                `"${c.contact || ''}"`,
+                `"${c.email || ''}"`,
+                `"${c.profile_url || ''}"`,
+                `"${c.tier || ''}"`,
+                `"${c.category || ''}"`,
+                `"${c.region || ''}"`,
+                `"${c.segment || ''}"`,
+                `"${c.status || ''}"`
+            ].join(","))
+        ].join("\n");
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `tiktok_candidates_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleExportExcel = () => {
+        if (filteredCandidates.length === 0) {
+            toast.error("No candidates to export");
+            return;
+        }
+
+        const data = filteredCandidates.map(c => ({
+            Name: c.kol_name,
+            Username: c.username,
+            Followers: c.tt_followers,
+            Likes: c.total_likes,
+            Videos: c.total_videos,
+            "Avg Views": c.avg_views,
+            ER: `${c.er}%`,
+            Contact: c.contact,
+            Email: c.email,
+            "Profile URL": c.profile_url,
+            Tier: c.tier,
+            Category: c.category,
+            Region: c.region,
+            Segment: c.segment,
+            Status: c.status
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Candidates");
+        XLSX.writeFile(wb, `tiktok_candidates_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
+    const handleCopyKeywords = () => {
+        if (filteredCandidates.length === 0) {
+            toast.error("No candidates to copy");
+            return;
+        }
+
+        const headers = ["Name", "Username", "Followers", "Likes", "Videos", "Avg Views", "ER", "Contact", "Email", "Tier", "Status"];
+        const rows = filteredCandidates.map(c => [
+            c.kol_name,
+            c.username,
+            c.tt_followers,
+            c.total_likes,
+            c.total_videos,
+            c.avg_views,
+            `${c.er}%`,
+            c.contact,
+            c.email,
+            c.tier,
+            c.status
+        ].join("\t"));
+
+        const text = [headers.join("\t"), ...rows].join("\n");
+        navigator.clipboard.writeText(text);
+        toast.success("Copied to clipboard (Google Sheets friendly)");
+    };
+
     const toggleSelect = (id: string) => {
         setSelectedIds(prev => {
             const next = new Set(prev);
@@ -190,17 +296,41 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
                         className="pl-10 h-10 w-full bg-white/5 border-none text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-0 focus-visible:bg-secondary/50 transition-all rounded-xl"
                     />
                 </div>
-                {selectedIds.size > 0 && (
-                    <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={bulkDelete}
-                        className="gap-2"
-                    >
-                        <Trash2 size={16} />
-                        Delete Selected ({selectedIds.size})
-                    </Button>
-                )}
+                <div className="flex items-center gap-2">
+                    {selectedIds.size > 0 && (
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={bulkDelete}
+                            className="gap-2"
+                        >
+                            <Trash2 size={16} />
+                            Delete ({selectedIds.size})
+                        </Button>
+                    )}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="gap-2 bg-white/5 border-white/10 hover:bg-white/10">
+                                <Download size={16} />
+                                Export
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={handleExportCSV} className="cursor-pointer">
+                                Export to CSV
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleExportExcel} className="cursor-pointer">
+                                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                Export to Excel
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={handleCopyKeywords} className="cursor-pointer">
+                                <Copy className="mr-2 h-4 w-4" />
+                                Copy for Google Sheets
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             </div>
 
             <div className="flex-1 overflow-auto rounded-xl bg-secondary/10">
