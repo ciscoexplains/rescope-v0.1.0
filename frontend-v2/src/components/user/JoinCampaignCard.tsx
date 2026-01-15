@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { ArrowRight, Loader2 } from 'lucide-react';
 
 interface JoinCampaignCardProps {
-    onJoinSuccess?: () => void;
+    onJoinSuccess?: (campaign?: any) => void;
 }
 
 export default function JoinCampaignCard({ onJoinSuccess }: JoinCampaignCardProps) {
@@ -58,7 +58,13 @@ export default function JoinCampaignCard({ onJoinSuccess }: JoinCampaignCardProp
             toast.success(`Successfully joined ${campaign.brand_name}!`);
             setJoinCode('');
             if (onJoinSuccess) {
-                onJoinSuccess();
+                // Pass back a shape that matches JoinedCampaign structure roughly, or just trigger refresh
+                // Better: Trigger refresh, but let's wait a tiny bit?
+                // Actually, if we pass the campaign data, we can update local state immediately.
+                onJoinSuccess({
+                    id: 'temp-' + Date.now(), // Temporary ID until refresh
+                    campaign: campaign
+                });
             }
         } catch (err: any) {
             console.error('Join error:', err);
