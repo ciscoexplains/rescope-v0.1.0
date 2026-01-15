@@ -73,27 +73,56 @@ export function MoveToCampaignModal({ open, onOpenChange, candidates, onSuccess 
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("Not authenticated");
 
-            const candidatesToInsert = candidates.map((item: any) => ({
-                campaign_id: selectedCampaignId,
-                username: item.authorMeta?.name || 'unknown',
-                kol_name: item.authorMeta?.nickName || item.authorMeta?.name || 'Unknown',
-                tt_followers: item.authorMeta?.fans || 0,
-                avg_views: item.avg_views || item.playCount || 0,
-                status: 'New',
-                tier: item.tier || 'Nano',
-                tiktok: item.authorMeta?.name || '',
-                avatar: item.authorMeta?.avatar || '',
-                contact: item.phone,
-                email: item.email,
-                er: item.er || 0,
-                profile_url: `https://tiktok.com/@${item.authorMeta?.name}`,
-                is_verified: item.is_verified,
-                category: item.category,
-                region: item.region,
-                segment: item.segment,
-                total_likes: item.total_likes || item.authorMeta?.heart || 0,
-                total_videos: item.total_videos || item.authorMeta?.video || 0
-            }));
+            const inputUsernames = candidates.map(item => item.authorMeta?.name || item.username);
+
+            // Check for existing candidates in this campaign to avoid duplicates
+            const { data: existingCandidates, error: fetchError } = await supabase
+                .from('candidates_tiktok')
+                .select('username')
+                .eq('campaign_id', selectedCampaignId)
+                .in('username', inputUsernames);
+
+            if (fetchError) throw fetchError;
+
+            const existingSet = new Set((existingCandidates || []).map(c => c.username));
+
+            const candidatesToInsert = candidates
+                .filter(item => {
+                    const username = item.authorMeta?.name || item.username;
+                    return !existingSet.has(username);
+                })
+                .map((item: any) => ({
+                    campaign_id: selectedCampaignId,
+                    username: item.authorMeta?.name || item.username || 'unknown',
+                    kol_name: item.authorMeta?.nickName || item.authorMeta?.name || item.kol_name || 'Unknown',
+                    tt_followers: item.authorMeta?.fans || item.tt_followers || 0,
+                    avg_views: item.avg_views || item.playCount || 0,
+                    status: 'New',
+                    tier: item.tier || 'Nano',
+                    tiktok: item.authorMeta?.name || item.username || '',
+                    avatar: item.authorMeta?.avatar || item.avatar || '',
+                    contact: item.phone || item.contact,
+                    email: item.email,
+                    er: item.er || 0,
+                    profile_url: `https://tiktok.com/@${item.authorMeta?.name || item.username}`,
+                    is_verified: item.is_verified,
+                    category: item.category,
+                    region: item.region,
+                    segment: item.segment,
+                    total_likes: item.total_likes || item.authorMeta?.heart || 0,
+                    total_videos: item.total_videos || item.authorMeta?.video || 0
+                }));
+
+            if (candidatesToInsert.length === 0) {
+                toast.info("All selected candidates are already in this campaign.");
+                onSuccess(); // Clear selection even if none moved? Or keep?
+                // User expectation: "moved". If already there, task is "done". 
+                // We should probably allow them to clear selection.
+                // Let's call onSuccess() to clear selection as they are "processed".
+                onOpenChange(false);
+                setSelectedCampaignId('');
+                return;
+            }
 
             const { error } = await supabase
                 .from('candidates_tiktok')
@@ -101,7 +130,8 @@ export function MoveToCampaignModal({ open, onOpenChange, candidates, onSuccess 
 
             if (error) throw error;
 
-            toast.success(`Successfully moved ${candidatesToInsert.length} candidates.`);
+            const skipped = candidates.length - candidatesToInsert.length;
+            toast.success(`Successfully moved ${candidatesToInsert.length} candidates.${skipped > 0 ? ` (${skipped} duplicates skipped)` : ''}`);
             onSuccess();
             onOpenChange(false);
             setSelectedCampaignId('');
