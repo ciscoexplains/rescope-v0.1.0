@@ -97,15 +97,16 @@ export async function POST(req: Request) {
                     const shareCount = video.shareCount || 0;
 
                     totalViews += playCount;
-                    totalInteractions += (diggCount + commentCount + shareCount);
+                    totalInteractions += (diggCount + commentCount); // User requested specific formula: Likes + Comments
                 });
 
                 const avgViews = Math.round(totalViews / videos.length);
 
-                // ER Calculation: ((Total Interactions / Followers) / Number of Posts) * 100
+                // ER Calculation: (Total Likes + Comments / Reach) x 100%
+                // using Reach = Total Views of the analyzed videos
                 let er = 0;
-                if (followers > 0) {
-                    er = ((totalInteractions / followers) / videos.length) * 100;
+                if (totalViews > 0) {
+                    er = (totalInteractions / totalViews) * 100;
                 }
 
                 results[username] = {

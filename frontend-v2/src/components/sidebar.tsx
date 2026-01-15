@@ -77,13 +77,17 @@ export const Sidebar = () => {
             </button>
 
             {/* Sidebar Container */}
-            <div className={`
-                fixed inset-y-0 left-0 z-40 h-full bg-card/95 backdrop-blur-md border-r border-border 
-                transform transition-all duration-300 ease-in-out text-left flex flex-col shrink-0
-                ${isMobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full'}
-                md:relative md:translate-x-0 
-                ${isExpanded ? 'md:w-64' : 'md:w-20'} 
-            `}>
+            <div
+                className={`
+                    fixed inset-y-0 left-0 z-40 h-full bg-card/95 backdrop-blur-md border-r border-border 
+                    transform transition-all duration-300 ease-in-out text-left flex flex-col shrink-0
+                    ${isMobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full'}
+                    md:relative md:translate-x-0 
+                    ${isExpanded ? 'md:w-64' : 'md:w-20'} 
+                `}
+                onMouseEnter={() => setIsExpanded(true)}
+                onMouseLeave={() => setIsExpanded(false)}
+            >
 
                 {/* Header / Logo */}
                 <div className={`p-4 border-b border-border flex items-center h-16 ${isExpanded ? 'justify-between' : 'justify-center'}`}>
@@ -96,13 +100,6 @@ export const Sidebar = () => {
                     ) : (
                         <span className="text-xl font-bold text-[var(--color-primary)]">RE</span>
                     )}
-
-                    <button
-                        onClick={() => setIsExpanded(!isExpanded)}
-                        className="p-1 rounded-md hover:bg-gray-800 text-gray-400 hidden md:block"
-                    >
-                        {isExpanded ? <ChevronDown className="rotate-90" size={20} /> : <Menu size={20} />}
-                    </button>
                 </div>
 
                 <nav className="flex-1 p-2 overflow-y-auto overflow-x-hidden space-y-2">

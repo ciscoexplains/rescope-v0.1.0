@@ -78,19 +78,21 @@ export function MoveToCampaignModal({ open, onOpenChange, candidates, onSuccess 
                 username: item.authorMeta?.name || 'unknown',
                 kol_name: item.authorMeta?.nickName || item.authorMeta?.name || 'Unknown',
                 tt_followers: item.authorMeta?.fans || 0,
-                avg_views: item.playCount || 0,
+                avg_views: item.avg_views || item.playCount || 0,
                 status: 'New',
                 tier: item.tier || 'Nano',
                 tiktok: item.authorMeta?.name || '',
                 avatar: item.authorMeta?.avatar || '',
                 contact: item.phone,
                 email: item.email,
-                er: 0,
+                er: item.er || 0,
                 profile_url: `https://tiktok.com/@${item.authorMeta?.name}`,
                 is_verified: item.is_verified,
                 category: item.category,
                 region: item.region,
-                segment: item.segment
+                segment: item.segment,
+                total_likes: item.total_likes || item.authorMeta?.heart || 0,
+                total_videos: item.total_videos || item.authorMeta?.video || 0
             }));
 
             const { error } = await supabase
