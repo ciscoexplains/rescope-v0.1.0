@@ -180,6 +180,11 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
             return;
         }
 
+        if (filteredCandidates.some(c => c.status === 'New')) {
+            toast.error("Cannot export while there are unreviewed candidates.");
+            return;
+        }
+
         const headers = [
             "Name", "Username", "Followers", "Likes", "Videos", "Avg Views", "ER", "Contact", "Email", "Profile URL", "Tier", "Category", "Region", "Segment", "Status"
         ];
@@ -221,6 +226,11 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
             return;
         }
 
+        if (filteredCandidates.some(c => c.status === 'New')) {
+            toast.error("Cannot export while there are unreviewed candidates.");
+            return;
+        }
+
         const data = filteredCandidates.map(c => ({
             Name: c.kol_name,
             Username: c.username,
@@ -248,6 +258,11 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
     const handleCopyKeywords = () => {
         if (filteredCandidates.length === 0) {
             toast.error("No candidates to copy");
+            return;
+        }
+
+        if (filteredCandidates.some(c => c.status === 'New')) {
+            toast.error("Cannot copy while there are unreviewed candidates.");
             return;
         }
 

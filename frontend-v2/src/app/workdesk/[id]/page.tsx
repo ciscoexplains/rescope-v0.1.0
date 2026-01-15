@@ -35,6 +35,24 @@ export default function CampaignWorkspace() {
     };
 
     const handleFinish = async () => {
+        // Check for unreviewed candidates first
+        const { count, error: countError } = await supabase
+            .from('candidates_tiktok')
+            .select('*', { count: 'exact', head: true })
+            .eq('campaign_id', campaignId)
+            .eq('status', 'New');
+
+        if (countError) {
+            console.error("Error checking candidates status:", countError);
+            toast.error("Failed to verify campaign status");
+            return;
+        }
+
+        if (count && count > 0) {
+            toast.error(`Cannot finish task. There are ${count} unreviewed candidates.`);
+            return;
+        }
+
         const { error } = await supabase
             .from('campaigns')
             .update({ status: 'Completed' })
