@@ -28,7 +28,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!brandName) {
-            toast.error('Brand Name is required');
+            toast.error('Campaign Name is required');
             return;
         }
 
@@ -101,7 +101,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
             ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <Input
-                        label="Brand Name"
+                        label="Campaign Name"
                         placeholder="e.g. Acme Corp"
                         value={brandName}
                         onChange={(e) => setBrandName(e.target.value)}
