@@ -21,6 +21,9 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    AlertDialog,
+} from "@/components/ui/alert-dialog";
 
 interface TikTokCandidate {
     id: string;
@@ -53,6 +56,8 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [candidateToDelete, setCandidateToDelete] = useState<string | null>(null);
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
     useEffect(() => {
         fetchCandidates();
@@ -117,29 +122,36 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
         else toast.success('Status updated');
     };
 
-    const deleteCandidate = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this candidate?')) return;
+    const initiateDeleteCandidate = (id: string) => {
+        setCandidateToDelete(id);
+    };
+
+    const confirmDeleteCandidate = async () => {
+        if (!candidateToDelete) return;
 
         const { error } = await supabase
             .from('candidates_tiktok')
             .delete()
-            .eq('id', id);
+            .eq('id', candidateToDelete);
 
         if (error) toast.error('Failed to delete candidate');
         else {
             toast.success('Candidate deleted');
             setSelectedIds(prev => {
                 const next = new Set(prev);
-                next.delete(id);
+                next.delete(candidateToDelete);
                 return next;
             });
         }
+        setCandidateToDelete(null);
     };
 
-    const bulkDelete = async () => {
+    const initiateBulkDelete = () => {
         if (selectedIds.size === 0) return;
-        if (!confirm(`Are you sure you want to delete ${selectedIds.size} candidates?`)) return;
+        setShowBulkDeleteConfirm(true);
+    };
 
+    const confirmBulkDelete = async () => {
         const idsToDelete = Array.from(selectedIds);
         const { error } = await supabase
             .from('candidates_tiktok')
@@ -151,6 +163,7 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
             toast.success(`${idsToDelete.length} candidates deleted`);
             setSelectedIds(new Set());
         }
+        setShowBulkDeleteConfirm(false);
     };
 
     const toggleSelectAll = () => {
@@ -301,7 +314,7 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
                         <Button
                             variant="destructive"
                             size="sm"
-                            onClick={bulkDelete}
+                            onClick={initiateBulkDelete}
                             className="gap-2"
                         >
                             <Trash2 size={16} />
@@ -446,7 +459,7 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                        onClick={() => deleteCandidate(candidate.id)}
+                                        onClick={() => initiateDeleteCandidate(candidate.id)}
                                     >
                                         <Trash2 size={16} />
                                     </Button>
@@ -463,6 +476,26 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
                     </tbody>
                 </table>
             </div>
+
+            <AlertDialog
+                isOpen={!!candidateToDelete}
+                onClose={() => setCandidateToDelete(null)}
+                onConfirm={confirmDeleteCandidate}
+                title="Are you sure?"
+                description="This action cannot be undone. This will permanently delete the candidate."
+                confirmText="Delete"
+                variant="destructive"
+            />
+
+            <AlertDialog
+                isOpen={showBulkDeleteConfirm}
+                onClose={() => setShowBulkDeleteConfirm(false)}
+                onConfirm={confirmBulkDelete}
+                title="Are you sure?"
+                description={`This action cannot be undone. This will permanently delete ${selectedIds.size} candidates.`}
+                confirmText="Delete"
+                variant="destructive"
+            />
         </div>
     );
 }

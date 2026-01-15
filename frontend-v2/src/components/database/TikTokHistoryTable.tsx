@@ -11,6 +11,9 @@ import { MoveToCampaignModal } from '@/components/tools/MoveToCampaignModal';
 
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import {
+    AlertDialog,
+} from "@/components/ui/alert-dialog";
 
 export default function TikTokHistoryTable() {
     const [loading, setLoading] = useState(false);
@@ -19,6 +22,7 @@ export default function TikTokHistoryTable() {
     const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
     const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
     const [searchFilter, setSearchFilter] = useState('');
+    const [showClearHistoryConfirm, setShowClearHistoryConfirm] = useState(false);
 
     useEffect(() => {
         fetchHistory();
@@ -135,9 +139,11 @@ export default function TikTokHistoryTable() {
         }
     };
 
-    const handleClearHistory = async () => {
-        if (!confirm("Are you sure you want to clear the entire history?")) return;
+    const initiateClearHistory = () => {
+        setShowClearHistoryConfirm(true);
+    };
 
+    const confirmClearHistory = async () => {
         const { error } = await supabase
             .from('scraper_history_tiktok')
             .delete()
@@ -150,6 +156,7 @@ export default function TikTokHistoryTable() {
             setSelectedIndices(new Set());
             toast.success("History cleared");
         }
+        setShowClearHistoryConfirm(false);
     };
 
     const getSelectedCandidates = () => {
@@ -316,7 +323,7 @@ export default function TikTokHistoryTable() {
                             {analyzing ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <BarChart2 size={16} className="mr-2" />}
                             Analyze ({selectedIndices.size})
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={handleClearHistory} className="text-muted-foreground hover:text-destructive hover:bg-white/5">
+                        <Button variant="ghost" size="sm" onClick={initiateClearHistory} className="text-muted-foreground hover:text-destructive hover:bg-white/5">
                             <Trash2 size={16} className="mr-2" />
                             Clear All
                         </Button>
@@ -490,6 +497,16 @@ export default function TikTokHistoryTable() {
                 onOpenChange={setIsMoveModalOpen}
                 candidates={getSelectedCandidates()}
                 onSuccess={() => setSelectedIndices(new Set())}
+            />
+
+            <AlertDialog
+                isOpen={showClearHistoryConfirm}
+                onClose={() => setShowClearHistoryConfirm(false)}
+                onConfirm={confirmClearHistory}
+                title="Are you sure?"
+                description="This will permanently delete your entire TikTok scraper history. This action cannot be undone."
+                confirmText="Clear History"
+                variant="destructive"
             />
         </div>
     );

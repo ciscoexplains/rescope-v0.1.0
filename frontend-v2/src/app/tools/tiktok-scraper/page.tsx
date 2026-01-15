@@ -13,6 +13,7 @@ import { MoveToCampaignModal } from '@/components/tools/MoveToCampaignModal';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Trash2, MessageCircle } from 'lucide-react';
+import { AlertDialog } from "@/components/ui/alert-dialog";
 
 export default function TikTokScraperPage() {
     const [query, setQuery] = useState('');
@@ -22,6 +23,7 @@ export default function TikTokScraperPage() {
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
     const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
 
     useEffect(() => {
         fetchHistory();
@@ -273,9 +275,11 @@ export default function TikTokScraperPage() {
         }
     };
 
-    const handleClearHistory = async () => {
-        if (!confirm("Are you sure you want to clear the search history?")) return;
+    const initiateClearHistory = () => {
+        setShowClearConfirm(true);
+    };
 
+    const confirmClearHistory = async () => {
         const { error } = await supabase
             .from('scraper_history_tiktok')
             .delete()
@@ -288,6 +292,7 @@ export default function TikTokScraperPage() {
             setSelectedIndices(new Set());
             toast.success("History cleared");
         }
+        setShowClearConfirm(false);
     };
 
     const getSelectedCandidates = () => {
@@ -460,7 +465,7 @@ export default function TikTokScraperPage() {
                                 {analyzing ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <BarChart2 size={16} className="mr-2" />}
                                 Analyze ({selectedIndices.size})
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={handleClearHistory} className="text-muted-foreground hover:text-destructive hover:bg-white/5">
+                            <Button variant="ghost" size="sm" onClick={initiateClearHistory} className="text-muted-foreground hover:text-destructive hover:bg-white/5">
                                 <Trash2 size={16} className="mr-2" />
                                 Clear Results
                             </Button>
@@ -631,6 +636,16 @@ export default function TikTokScraperPage() {
                 onOpenChange={setIsMoveModalOpen}
                 candidates={getSelectedCandidates()}
                 onSuccess={handleMoveSuccess}
+            />
+
+            <AlertDialog
+                isOpen={showClearConfirm}
+                onClose={() => setShowClearConfirm(false)}
+                onConfirm={confirmClearHistory}
+                title="Clear Search History?"
+                description="This will permanently delete your entire TikTok scraper history. This action cannot be undone."
+                confirmText="Clear History"
+                variant="destructive"
             />
         </div>
     );
