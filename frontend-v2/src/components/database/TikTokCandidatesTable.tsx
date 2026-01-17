@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Loader2, Search, Plus, Trash2, Download, FileSpreadsheet, Copy } from 'lucide-react';
+import { Loader2, Search, Plus, Trash2, Download, FileSpreadsheet, Copy, ArrowUpDown, ArrowUp, ArrowDown, Instagram } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import * as XLSX from 'xlsx';
+import { useSortableData } from '@/hooks/useSortableData';
 import {
     Select,
     SelectContent,
@@ -52,6 +54,7 @@ interface TikTokCandidatesTableProps {
 }
 
 export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTableProps) {
+    const router = useRouter();
     const [candidates, setCandidates] = useState<TikTokCandidate[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -303,6 +306,17 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
         );
     });
 
+    const { items: sortedCandidates, requestSort, sortConfig } = useSortableData(filteredCandidates);
+
+    const getSortIcon = (columnName: string) => {
+        if (!sortConfig || sortConfig.key !== columnName) {
+            return <ArrowUpDown className="w-3 h-3 opacity-50" />;
+        }
+        return sortConfig.direction === 'ascending' ?
+            <ArrowUp className="w-3 h-3" /> :
+            <ArrowDown className="w-3 h-3" />;
+    };
+
     if (loading) {
         return (
             <div className="flex-1 flex items-center justify-center p-8">
@@ -336,6 +350,24 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
                             Delete ({selectedIds.size})
                         </Button>
                     )}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push('/tools/tiktok-scraper')}
+                        className="gap-2 bg-white/5 border-white/10 hover:bg-white/10"
+                        title="Find TikTok KOLs"
+                    >
+                        <Search size={16} />
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push('/tools/ig-scraper')}
+                        className="gap-2 bg-white/5 border-white/10 hover:bg-white/10"
+                        title="Find IG KOLs"
+                    >
+                        <Instagram size={16} />
+                    </Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm" className="gap-2 bg-white/5 border-white/10 hover:bg-white/10">
@@ -372,20 +404,55 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
                                     className="border-white/10 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                                 />
                             </th>
-                            <th className="px-4 py-3">Profile</th>
+                            <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('kol_name')}>
+                                <div className="flex items-center gap-1">
+                                    Profile
+                                    {getSortIcon('kol_name')}
+                                </div>
+                            </th>
                             <th className="px-4 py-3">Contact</th>
-                            <th className="px-4 py-3">Followers</th>
-                            <th className="px-4 py-3">Likes</th>
-                            <th className="px-4 py-3">Videos</th>
-                            <th className="px-4 py-3">Avg Views</th>
-                            <th className="px-4 py-3">ER</th>
+                            <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('tt_followers')}>
+                                <div className="flex items-center gap-1">
+                                    Followers
+                                    {getSortIcon('tt_followers')}
+                                </div>
+                            </th>
+                            <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('total_likes')}>
+                                <div className="flex items-center gap-1">
+                                    Likes
+                                    {getSortIcon('total_likes')}
+                                </div>
+                            </th>
+                            <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('total_videos')}>
+                                <div className="flex items-center gap-1">
+                                    Videos
+                                    {getSortIcon('total_videos')}
+                                </div>
+                            </th>
+                            <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('avg_views')}>
+                                <div className="flex items-center gap-1">
+                                    Avg Views
+                                    {getSortIcon('avg_views')}
+                                </div>
+                            </th>
+                            <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('er')}>
+                                <div className="flex items-center gap-1">
+                                    ER
+                                    {getSortIcon('er')}
+                                </div>
+                            </th>
                             <th className="px-4 py-3">Details</th>
-                            <th className="px-4 py-3">Status</th>
+                            <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('status')}>
+                                <div className="flex items-center gap-1">
+                                    Status
+                                    {getSortIcon('status')}
+                                </div>
+                            </th>
                             <th className="px-4 py-3 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                        {filteredCandidates.map((candidate) => (
+                        {sortedCandidates.map((candidate) => (
                             <tr key={candidate.id} className="hover:bg-white/[0.02] transition-colors">
                                 <td className="px-4 py-4 align-top">
                                     <Checkbox

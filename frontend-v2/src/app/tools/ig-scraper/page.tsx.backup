@@ -1,0 +1,633 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import DashboardHeader from "@/components/DashboardHeader";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronDown, ChevronRight, Plus, FileEdit, Info, Play, Loader2, CheckCircle2, XCircle, ArrowRight, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
+import { MoveToCampaignModal } from '@/components/tools/MoveToCampaignModal';
+
+interface InstagramProfile {
+    username: string;
+    full_name: string;
+    bio: string;
+    avatar: string;
+    followers: number;
+    following: number;
+    posts_count: number;
+    email: string;
+    median_views: number;
+    website: string;
+    contact: string;
+    er: number;
+    tier: string;
+    is_verified: boolean;
+}
+
+export default function InstagramScraperPage() {
+    // State for accordion sections
+    const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+    const [isKeywordsOpen, setIsKeywordsOpen] = useState(false);
+
+    // Scraping state
+    const [isScraping, setIsScraping] = useState(false);
+    const [results, setResults] = useState<InstagramProfile[]>([]);
+    const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+    const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+    const [showResults, setShowResults] = useState(false);
+
+    // Discovery Settings
+    const [startProfiles, setStartProfiles] = useState('');
+    const [searchDepth, setSearchDepth] = useState('1');
+    const [maxProfiles, setMaxProfiles] = useState(50);
+
+    // Data Extraction Options
+    const [extractEmail, setExtractEmail] = useState(true);
+    const [extractPhone, setExtractPhone] = useState(true);
+    const [extractWebsite, setExtractWebsite] = useState(true);
+    const [extractCategory, setExtractCategory] = useState(false);
+    const [extractAddress, setExtractAddress] = useState(false);
+    const [calculateER, setCalculateER] = useState(true);
+    const [extractCaptions, setExtractCaptions] = useState(false);
+    const [deepSearch, setDeepSearch] = useState(false);
+
+    // Advanced filters state
+    const [keywords, setKeywords] = useState<string[]>([]);
+    const [keywordLocation, setKeywordLocation] = useState('bio_or_name');
+    const [locationKeywords, setLocationKeywords] = useState('');
+    const [profileLanguage, setProfileLanguage] = useState('any');
+    const [minFollowers, setMinFollowers] = useState(0);
+    const [maxFollowers, setMaxFollowers] = useState(0);
+    const [lastPostDays, setLastPostDays] = useState(0);
+    const [minPosts, setMinPosts] = useState(0);
+    const [postsPeriod, setPostsPeriod] = useState('30');
+    const [recentReels, setRecentReels] = useState('disabled');
+    const [medianViews, setMedianViews] = useState(0);
+    const [viewsRatio, setViewsRatio] = useState(false);
+    const [contactInfo, setContactInfo] = useState('any');
+    const [hasWebsite, setHasWebsite] = useState(false);
+    const [accountType, setAccountType] = useState('any');
+    const [filterInfluencers, setFilterInfluencers] = useState(false);
+    const [businessCategory, setBusinessCategory] = useState('any');
+    const [mustBeVerified, setMustBeVerified] = useState(false);
+
+    // Load existing results from database on mount
+    useEffect(() => {
+        loadExistingResults();
+    }, []);
+
+    const loadExistingResults = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('scraper_history_instagram')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                setResults(data);
+                setShowResults(true);
+            }
+        } catch (error: any) {
+            console.error('Error loading results:', error);
+        }
+    };
+
+    const handleStart = async () => {
+        if (!startProfiles.trim()) {
+            toast.error('Please enter at least one Instagram username');
+            return;
+        }
+
+        setIsScraping(true);
+        setShowResults(false);
+
+        try {
+            const response = await fetch('/api/apify/instagram-scraper', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    startProfiles: startProfiles.trim(),
+                    searchDepth,
+                    maxProfiles,
+                    extractEmail,
+                    extractPhone,
+                    extractWebsite,
+                    extractCategory,
+                    extractAddress,
+                    calculateER,
+                    extractCaptions,
+                    deepSearch,
+                    keywords,
+                    keywordLocation,
+                    locationKeywords,
+                    profileLanguage,
+                    minFollowers,
+                    maxFollowers,
+                    lastPostDays,
+                    minPosts,
+                    postsPeriod,
+                    recentReels,
+                    medianViews,
+                    viewsRatio,
+                    contactInfo,
+                    hasWebsite,
+                    accountType,
+                    filterInfluencers,
+                    businessCategory,
+                    mustBeVerified,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) throw new Error(data.error || 'Scraping failed');
+
+            // Append new results to existing ones instead of replacing
+            setResults(prev => [...data.results, ...prev]);
+            toast.success(`Found ${data.count} new Instagram profiles!`);
+
+            // Save to Supabase
+            if (data.results && data.results.length > 0) {
+                const { error } = await supabase
+                    .from('scraper_history_instagram')
+                    .insert(data.results);
+
+                if (error) {
+                    console.error('Error saving to database:', error);
+                    toast.error('Profiles found but failed to save to database');
+                } else {
+                    toast.success('Profiles saved to database!');
+                }
+            }
+
+            setShowResults(true);
+
+        } catch (error: any) {
+            console.error('Scraping error:', error);
+            toast.error(error.message || 'Failed to scrape profiles');
+        } finally {
+            setIsScraping(false);
+        }
+    };
+
+    return (
+        <div className="p-6 space-y-6">
+            <DashboardHeader
+                customGreeting="Instagram Scraper"
+                title="Extract and analyze Instagram profiles with advanced filtering"
+            >
+                <Button onClick={handleStart} disabled={isScraping} className="gap-2">
+                    {isScraping ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+                    {isScraping ? 'Scraping...' : 'Start Scraping'}
+                </Button>
+            </DashboardHeader>
+
+            <div className="max-w-4xl mx-auto space-y-6">
+                {/* Section 1: Discovery Settings */}
+                <Card className="border-border bg-card/50 backdrop-blur">
+                    <CardHeader>
+                        <CardTitle className="text-lg">Discovery Settings</CardTitle>
+                        <CardDescription>Configure how profiles are discovered</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {/* Start Profiles */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium flex items-center gap-2">
+                                Start Profiles
+                                <Info size={14} className="text-muted-foreground" />
+                            </label>
+                            <Input
+                                value={startProfiles}
+                                onChange={(e) => setStartProfiles(e.target.value)}
+                                placeholder="@username1, @username2, @username3"
+                                className="bg-background/50 border-border"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Enter Instagram usernames separated by commas
+                            </p>
+                        </div>
+
+                        {/* Search Depth */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Search Depth</label>
+                                <Select value={searchDepth} onValueChange={setSearchDepth}>
+                                    <SelectTrigger className="bg-background/50 border-border">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="1">1 (Recommended)</SelectItem>
+                                        <SelectItem value="2">2</SelectItem>
+                                        <SelectItem value="3">3</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground min-h-[2.5rem]">
+                                    How many levels deep to search
+                                </p>
+                            </div>
+
+                            {/* Max Profiles */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Max Profiles to Process</label>
+                                <Input
+                                    type="number"
+                                    value={maxProfiles}
+                                    onChange={(e) => setMaxProfiles(parseInt(e.target.value) || 0)}
+                                    className="bg-background/50 border-border"
+                                    min="1"
+                                />
+                                <p className="text-xs text-muted-foreground min-h-[2.5rem]">
+                                    Number of profiles to scrape
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Section 2: Data Extraction Options */}
+                <Card className="border-border bg-card/50 backdrop-blur">
+                    <CardHeader>
+                        <CardTitle className="text-lg">Data Extraction Options</CardTitle>
+                        <CardDescription>Select what data to extract from profiles</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <div className="flex items-center justify-between py-2">
+                            <div className="flex-1">
+                                <label className="text-sm font-medium">Extract Email</label>
+                                <p className="text-xs text-muted-foreground">Find email addresses in bio</p>
+                            </div>
+                            <Switch checked={extractEmail} onCheckedChange={setExtractEmail} />
+                        </div>
+
+                        <div className="flex items-center justify-between py-2 border-t border-border/50">
+                            <div className="flex-1">
+                                <label className="text-sm font-medium">Extract Phone Number</label>
+                                <p className="text-xs text-muted-foreground">Find phone numbers in bio</p>
+                            </div>
+                            <Switch checked={extractPhone} onCheckedChange={setExtractPhone} />
+                        </div>
+
+                        <div className="flex items-center justify-between py-2 border-t border-border/50">
+                            <div className="flex-1">
+                                <label className="text-sm font-medium">Extract Website URL</label>
+                                <p className="text-xs text-muted-foreground">Get website links from profile</p>
+                            </div>
+                            <Switch checked={extractWebsite} onCheckedChange={setExtractWebsite} />
+                        </div>
+
+                        <div className="flex items-center justify-between py-2 border-t border-border/50">
+                            <div className="flex-1">
+                                <label className="text-sm font-medium">Extract Business Category</label>
+                                <p className="text-xs text-muted-foreground">Category for business accounts</p>
+                            </div>
+                            <Switch checked={extractCategory} onCheckedChange={setExtractCategory} />
+                        </div>
+
+                        <div className="flex items-center justify-between py-2 border-t border-border/50">
+                            <div className="flex-1">
+                                <label className="text-sm font-medium">Extract Physical Address</label>
+                                <p className="text-xs text-muted-foreground">Business address if available</p>
+                            </div>
+                            <Switch checked={extractAddress} onCheckedChange={setExtractAddress} />
+                        </div>
+
+                        <div className="flex items-center justify-between py-2 border-t border-border/50">
+                            <div className="flex-1">
+                                <label className="text-sm font-medium">Calculate Engagement Rate (ER)</label>
+                                <p className="text-xs text-muted-foreground">ER based on recent posts</p>
+                            </div>
+                            <Switch checked={calculateER} onCheckedChange={setCalculateER} />
+                        </div>
+
+                        <div className="flex items-center justify-between py-2 border-t border-border/50">
+                            <div className="flex-1">
+                                <label className="text-sm font-medium">Extract Latest Post Captions</label>
+                                <p className="text-xs text-muted-foreground">Captions from recent posts</p>
+                            </div>
+                            <Switch checked={extractCaptions} onCheckedChange={setExtractCaptions} />
+                        </div>
+
+                        <div className="flex items-center justify-between py-2 border-t border-border/50">
+                            <div className="flex-1">
+                                <label className="text-sm font-medium">Deep Search for Contacts in Posts</label>
+                                <p className="text-xs text-muted-foreground">Search captions for contact info</p>
+                            </div>
+                            <Switch checked={deepSearch} onCheckedChange={setDeepSearch} />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Section 3: Advanced Filtering */}
+                <Card className="border-border bg-card/50 backdrop-blur">
+                    <CardHeader
+                        className="cursor-pointer hover:bg-accent/5 transition-colors"
+                        onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+                    >
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle className="text-lg">Advanced Filtering</CardTitle>
+                                <CardDescription>Optional filters to refine results</CardDescription>
+                            </div>
+                            {isAdvancedOpen ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                        </div>
+                    </CardHeader>
+
+                    {isAdvancedOpen && (
+                        <CardContent className="space-y-6">
+                            {/* Filter by Location */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Filter by Location Keywords</label>
+                                <Input
+                                    value={locationKeywords}
+                                    onChange={(e) => setLocationKeywords(e.target.value)}
+                                    placeholder="e.g., Jakarta, Indonesia"
+                                    className="bg-background/50 border-border"
+                                />
+                            </div>
+
+                            {/* Profile Language */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Filter by Profile Language</label>
+                                <Select value={profileLanguage} onValueChange={setProfileLanguage}>
+                                    <SelectTrigger className="bg-background/50">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="any">Any</SelectItem>
+                                        <SelectItem value="English">English</SelectItem>
+                                        <SelectItem value="Indonesian">Indonesian</SelectItem>
+                                        <SelectItem value="Spanish">Spanish</SelectItem>
+                                        <SelectItem value="French">French</SelectItem>
+                                        <SelectItem value="German">German</SelectItem>
+                                        <SelectItem value="Chinese">Chinese</SelectItem>
+                                        <SelectItem value="Japanese">Japanese</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Follower Count Range */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Follower Count Range</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Input
+                                        type="number"
+                                        value={minFollowers || ''}
+                                        onChange={(e) => setMinFollowers(parseInt(e.target.value) || 0)}
+                                        placeholder="Min"
+                                        className="bg-background/50 border-border"
+                                    />
+                                    <Input
+                                        type="number"
+                                        value={maxFollowers || ''}
+                                        onChange={(e) => setMaxFollowers(parseInt(e.target.value) || 0)}
+                                        placeholder="Max"
+                                        className="bg-background/50 border-border"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Last Post Date */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Filter by Last Post Date</label>
+                                <Input
+                                    type="number"
+                                    value={lastPostDays || ''}
+                                    onChange={(e) => setLastPostDays(parseInt(e.target.value) || 0)}
+                                    placeholder="Within last X days"
+                                    className="bg-background/50 border-border"
+                                />
+                            </div>
+
+                            {/* Posting Frequency */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Posting Frequency</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Input
+                                        type="number"
+                                        value={minPosts || ''}
+                                        onChange={(e) => setMinPosts(parseInt(e.target.value) || 0)}
+                                        placeholder="Min Posts"
+                                        className="bg-background/50 border-border"
+                                    />
+                                    <Select value={postsPeriod} onValueChange={setPostsPeriod}>
+                                        <SelectTrigger className="bg-background/50">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="7">Last 7 days</SelectItem>
+                                            <SelectItem value="30">Last 30 days</SelectItem>
+                                            <SelectItem value="90">Last 90 days</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            {/* Recent Reels */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Filter by Recent Reels</label>
+                                <Select value={recentReels} onValueChange={setRecentReels}>
+                                    <SelectTrigger className="bg-background/50">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="disabled">Disabled</SelectItem>
+                                        <SelectItem value="hasReels">Has Recent Reels</SelectItem>
+                                        <SelectItem value="noReels">No Recent Reels</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Median Views */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Filter by Median Views</label>
+                                <Input
+                                    type="number"
+                                    value={medianViews || ''}
+                                    onChange={(e) => setMedianViews(parseInt(e.target.value) || 0)}
+                                    placeholder="Minimum median views"
+                                    className="bg-background/50 border-border"
+                                />
+                            </div>
+
+                            {/* Views/Followers Ratio */}
+                            <div className="flex items-center space-x-2 py-2">
+                                <Checkbox
+                                    id="viewsRatio"
+                                    checked={viewsRatio}
+                                    onCheckedChange={(checked) => setViewsRatio(checked as boolean)}
+                                />
+                                <label htmlFor="viewsRatio" className="text-sm font-medium cursor-pointer">
+                                    Filter by Views / Followers Ratio ≥ 30%
+                                </label>
+                            </div>
+
+                            {/* Contact Info Presence */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Filter by Contact Info Presence</label>
+                                <Select value={contactInfo} onValueChange={setContactInfo}>
+                                    <SelectTrigger className="bg-background/50">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="any">Any</SelectItem>
+                                        <SelectItem value="has">Has Contact Info</SelectItem>
+                                        <SelectItem value="none">No Contact Info</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Account Type */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Filter by Account Type</label>
+                                <Select value={accountType} onValueChange={setAccountType}>
+                                    <SelectTrigger className="bg-background/50">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="any">Any</SelectItem>
+                                        <SelectItem value="business">Business</SelectItem>
+                                        <SelectItem value="creator">Creator</SelectItem>
+                                        <SelectItem value="personal">Personal</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Filter for Influencers */}
+                            <div className="flex items-center justify-between py-2">
+                                <div className="flex-1">
+                                    <label className="text-sm font-medium">Filter for Influencers Only</label>
+                                    <p className="text-xs text-muted-foreground">By specific category</p>
+                                </div>
+                                <Switch checked={filterInfluencers} onCheckedChange={setFilterInfluencers} />
+                            </div>
+
+                            {/* Business Category */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Filter by Specific Business Category</label>
+                                <Select value={businessCategory} onValueChange={setBusinessCategory}>
+                                    <SelectTrigger className="bg-background/50">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="any">Any</SelectItem>
+                                        <SelectItem value="beauty">Beauty & Fashion</SelectItem>
+                                        <SelectItem value="food">Food & Beverage</SelectItem>
+                                        <SelectItem value="fitness">Health & Fitness</SelectItem>
+                                        <SelectItem value="tech">Technology</SelectItem>
+                                        <SelectItem value="travel">Travel</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Verification */}
+                            <div className="flex items-center justify-between py-2">
+                                <div className="flex-1">
+                                    <label className="text-sm font-medium">Filter by Verification</label>
+                                    <p className="text-xs text-muted-foreground">Verified accounts only</p>
+                                </div>
+                                <Switch checked={mustBeVerified} onCheckedChange={setMustBeVerified} />
+                            </div>
+                        </CardContent>
+                    )}
+                </Card>
+
+                {/* Results Section */}
+                {showResults && results.length > 0 && (
+                    <Card className="border-border bg-card/50 backdrop-blur">
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <CheckCircle2 className="text-green-500" size={20} />
+                                Scraping Results ({results.length} profiles)
+                            </CardTitle>
+                            <CardDescription>Found Instagram profiles matching your criteria</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="rounded-lg overflow-hidden overflow-x-auto bg-secondary/10">
+                                <table className="w-full text-sm text-left text-foreground">
+                                    <thead className="text-xs text-muted-foreground uppercase bg-white/5 sticky top-0">
+                                        <tr>
+                                            <th className="px-4 py-3">Profile</th>
+                                            <th className="px-4 py-3">Contact</th>
+                                            <th className="px-4 py-3">Followers</th>
+                                            <th className="px-4 py-3">Following</th>
+                                            <th className="px-4 py-3">Posts</th>
+                                            <th className="px-4 py-3">Median Views</th>
+                                            <th className="px-4 py-3">ER</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {results.map((profile, idx) => (
+                                            <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
+                                                <td className="px-4 py-4 align-top">
+                                                    <div className="flex items-start gap-3">
+                                                        {profile.avatar && (
+                                                            <img src={profile.avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
+                                                        )}
+                                                        <div>
+                                                            <div className="font-medium flex items-center gap-1">
+                                                                {profile.full_name}
+                                                                {profile.is_verified && <span className="text-blue-500 text-[10px] bg-blue-500/10 px-1 rounded">Verified</span>}
+                                                            </div>
+                                                            <a
+                                                                href={`https://instagram.com/${profile.username}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-xs text-blue-500 hover:underline"
+                                                            >
+                                                                @{profile.username}
+                                                            </a>
+                                                            <div className="flex gap-2 mt-1">
+                                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium 
+                                                                    ${profile.tier === 'Nano' ? 'bg-zinc-800 text-zinc-300' :
+                                                                        profile.tier === 'Micro' ? 'bg-blue-900/30 text-blue-400' :
+                                                                            profile.tier === 'Mid' ? 'bg-purple-900/30 text-purple-400' :
+                                                                                'bg-yellow-900/30 text-yellow-400'}`}>
+                                                                    {profile.tier}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-4 align-top text-xs space-y-1">
+                                                    {profile.contact && (
+                                                        <div className="flex items-center gap-1 text-muted-foreground hover:text-foreground cursor-pointer" title="Phone">
+                                                            📞 {profile.contact}
+                                                        </div>
+                                                    )}
+                                                    {profile.email && (
+                                                        <div className="flex items-center gap-1 text-muted-foreground hover:text-foreground cursor-pointer" title="Email">
+                                                            ✉️ {profile.email}
+                                                        </div>
+                                                    )}
+                                                    {profile.website && (
+                                                        <div className="flex items-center gap-1 text-muted-foreground hover:text-foreground cursor-pointer" title="Website">
+                                                            🌐 <a href={profile.website} target="_blank" className="hover:underline truncate max-w-[150px]">{profile.website}</a>
+                                                        </div>
+                                                    )}
+                                                    {!profile.contact && !profile.email && !profile.website && '-'}
+                                                </td>
+                                                <td className="px-4 py-4 align-top">{profile.followers?.toLocaleString()}</td>
+                                                <td className="px-4 py-4 align-top">{profile.following?.toLocaleString()}</td>
+                                                <td className="px-4 py-4 align-top">{profile.posts_count?.toLocaleString()}</td>
+                                                <td className="px-4 py-4 align-top">{profile.median_views?.toLocaleString()}</td>
+                                                <td className="px-4 py-4 align-top">{profile.er}%</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+        </div>
+    );
+}

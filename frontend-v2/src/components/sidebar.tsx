@@ -174,6 +174,11 @@ export const Sidebar = () => {
                                         label="TikTok Scraper"
                                         active={pathname === '/tools/tiktok-scraper'}
                                     />
+                                    <SubNavItem
+                                        href="/tools/ig-scraper"
+                                        label="IG Scraper"
+                                        active={pathname === '/tools/ig-scraper'}
+                                    />
                                 </div>
                             )
                         )}
@@ -212,6 +217,11 @@ export const Sidebar = () => {
                                         href="/databases/tiktok-history"
                                         label="TikTok History"
                                         active={pathname === '/databases/tiktok-history'}
+                                    />
+                                    <SubNavItem
+                                        href="/databases/instagram-history"
+                                        label="Instagram History"
+                                        active={pathname === '/databases/instagram-history'}
                                     />
                                 </div>
                             )

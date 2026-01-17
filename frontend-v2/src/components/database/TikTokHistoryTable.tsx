@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, ArrowRight, BarChart2, Trash2 } from 'lucide-react';
+import { Loader2, Search, ArrowRight, BarChart2, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from 'sonner';
 import { MoveToCampaignModal } from '@/components/tools/MoveToCampaignModal';
+import { useSortableData } from '@/hooks/useSortableData';
 
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
@@ -186,6 +187,17 @@ export default function TikTokHistoryTable() {
         (item.username || '').toLowerCase().includes(searchFilter.toLowerCase()) ||
         (item.kol_name || '').toLowerCase().includes(searchFilter.toLowerCase())
     );
+
+    const { items: sortedResults, requestSort, sortConfig } = useSortableData(filteredResults);
+
+    const getSortIcon = (columnName: string) => {
+        if (!sortConfig || sortConfig.key !== columnName) {
+            return <ArrowUpDown className="w-3 h-3 opacity-50" />;
+        }
+        return sortConfig.direction === 'ascending' ?
+            <ArrowUp className="w-3 h-3" /> :
+            <ArrowDown className="w-3 h-3" />;
+    };
 
     const handleAnalyze = async () => {
         const selectedItems = getSelectedCandidates();
@@ -370,19 +382,49 @@ export default function TikTokHistoryTable() {
                                                 className="border-white/10 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                                             />
                                         </th>
-                                        <th className="px-4 py-3">Profile</th>
+                                        <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('kol_name')}>
+                                            <div className="flex items-center gap-1">
+                                                Profile
+                                                {getSortIcon('kol_name')}
+                                            </div>
+                                        </th>
                                         <th className="px-4 py-3">Contact</th>
-                                        <th className="px-4 py-3">Followers</th>
-                                        <th className="px-4 py-3">Likes</th>
-                                        <th className="px-4 py-3">Videos</th>
-                                        <th className="px-4 py-3">Avg Views</th>
-                                        <th className="px-4 py-3">ER</th>
+                                        <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('authorMeta.fans')}>
+                                            <div className="flex items-center gap-1">
+                                                Followers
+                                                {getSortIcon('authorMeta.fans')}
+                                            </div>
+                                        </th>
+                                        <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('authorMeta.heart')}>
+                                            <div className="flex items-center gap-1">
+                                                Likes
+                                                {getSortIcon('authorMeta.heart')}
+                                            </div>
+                                        </th>
+                                        <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('authorMeta.video')}>
+                                            <div className="flex items-center gap-1">
+                                                Videos
+                                                {getSortIcon('authorMeta.video')}
+                                            </div>
+                                        </th>
+                                        <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('avg_views')}>
+                                            <div className="flex items-center gap-1">
+                                                Avg Views
+                                                {getSortIcon('avg_views')}
+                                            </div>
+                                        </th>
+                                        <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('er')}>
+                                            <div className="flex items-center gap-1">
+                                                ER
+                                                {getSortIcon('er')}
+                                            </div>
+                                        </th>
                                         <th className="px-4 py-3">Details</th>
                                         <th className="px-4 py-3">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
-                                    {filteredResults.map((item: any, idx) => (
+                                    {sortedResults.map((item: any, idx) => (
                                         <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
                                             <td className="px-4 py-3 align-top">
                                                 <Checkbox

@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { CheckCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import InstagramCandidatesTable from '@/components/database/InstagramCandidatesTable';
 import TikTokCandidatesTable from '@/components/database/TikTokCandidatesTable';
 
 export default function CampaignWorkspace() {
@@ -35,21 +37,36 @@ export default function CampaignWorkspace() {
     };
 
     const handleFinish = async () => {
-        // Check for unreviewed candidates first
-        const { count, error: countError } = await supabase
+        // Check for unreviewed candidates in TikTok
+        const { count: ttCount, error: ttError } = await supabase
             .from('candidates_tiktok')
             .select('*', { count: 'exact', head: true })
             .eq('campaign_id', campaignId)
             .eq('status', 'New');
 
-        if (countError) {
-            console.error("Error checking candidates status:", countError);
+        if (ttError) {
+            console.error("Error checking TikTok candidates status:", ttError);
             toast.error("Failed to verify campaign status");
             return;
         }
 
-        if (count && count > 0) {
-            toast.error(`Cannot finish task. There are ${count} unreviewed candidates.`);
+        // Check for unreviewed candidates in Instagram
+        const { count: igCount, error: igError } = await supabase
+            .from('candidates_instagram')
+            .select('*', { count: 'exact', head: true })
+            .eq('campaign_id', campaignId)
+            .eq('status', 'New');
+
+        if (igError) {
+            console.error("Error checking Instagram candidates status:", igError);
+            toast.error("Failed to verify campaign status");
+            return;
+        }
+
+        const totalUnreviewed = (ttCount || 0) + (igCount || 0);
+
+        if (totalUnreviewed > 0) {
+            toast.error(`Cannot finish task. There are ${totalUnreviewed} unreviewed candidates.`);
             return;
         }
 
@@ -80,7 +97,22 @@ export default function CampaignWorkspace() {
             </DashboardHeader>
 
             <div className="rounded-md">
-                <TikTokCandidatesTable campaignId={campaignId} />
+                <Tabs defaultValue="tiktok" className="w-full">
+                    <TabsList className="bg-white/5 border border-white/10 mb-4">
+                        <TabsTrigger value="tiktok" className="data-[state=active]:bg-zinc-800">
+                            TikTok Candidates
+                        </TabsTrigger>
+                        <TabsTrigger value="instagram" className="data-[state=active]:bg-zinc-800">
+                            Instagram Candidates
+                        </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="tiktok">
+                        <TikTokCandidatesTable campaignId={campaignId} />
+                    </TabsContent>
+                    <TabsContent value="instagram">
+                        <InstagramCandidatesTable campaignId={campaignId} />
+                    </TabsContent>
+                </Tabs>
             </div>
         </div>
     );
