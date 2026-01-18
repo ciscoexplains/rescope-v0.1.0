@@ -148,7 +148,7 @@ export function MoveToCampaignModal({ open, isOpen, onOpenChange, onClose, candi
 
             if (uniqueCandidates.length === 0) {
                 toast.info("All selected candidates are already in this campaign.");
-                onOpenChange(false);
+                handleClose(false);
                 setSelectedCampaignId('');
                 return;
             }
