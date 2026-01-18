@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import DashboardHeader from "@/components/DashboardHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import JoinCampaignCard from "@/components/user/JoinCampaignCard";
@@ -19,6 +20,7 @@ interface JoinedCampaign {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [joinedCampaigns, setJoinedCampaigns] = useState<JoinedCampaign[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -64,7 +66,13 @@ export default function Home() {
 
       {/* Action Section */}
       <div className="max-w-xl">
-        <JoinCampaignCard />
+        <JoinCampaignCard onJoinSuccess={(data) => {
+          if (data?.campaign?.id) {
+            router.push(`/workdesk/${data.campaign.id}`);
+          } else {
+            fetchJoinedCampaigns();
+          }
+        }} />
       </div>
 
       {/* Campaigns Grid */}

@@ -19,6 +19,7 @@ interface JoinedCampaign {
 }
 
 export default function WorkdeskPage() {
+    const router = useRouter();
     const [joinedCampaigns, setJoinedCampaigns] = useState<JoinedCampaign[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -57,8 +58,12 @@ export default function WorkdeskPage() {
             <DashboardHeader title="My Workdesk" />
 
             <div className="max-w-xl">
-                <JoinCampaignCard onJoinSuccess={() => {
-                    window.location.reload();
+                <JoinCampaignCard onJoinSuccess={(data) => {
+                    if (data?.campaign?.id) {
+                        router.push(`/workdesk/${data.campaign.id}`);
+                    } else {
+                        window.location.reload();
+                    }
                 }} />
             </div>
 
