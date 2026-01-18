@@ -12,8 +12,9 @@ import { MoveToCampaignModal } from '@/components/tools/MoveToCampaignModal';
 
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { Trash2, MessageCircle } from 'lucide-react';
+import { Trash2, MessageCircle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { AlertDialog } from "@/components/ui/alert-dialog";
+import { useSortableData } from '@/hooks/useSortableData';
 
 export default function TikTokScraperPage() {
     const [query, setQuery] = useState('');
@@ -300,7 +301,14 @@ export default function TikTokScraperPage() {
     };
 
     const getSelectedCandidates = () => {
-        return searchResults.filter((_, idx) => selectedIndices.has(idx));
+        return items.filter((_, idx) => selectedIndices.has(idx));
+    };
+
+    const { items, requestSort, sortConfig } = useSortableData(searchResults);
+
+    const getSortIcon = (key: string) => {
+        if (sortConfig?.key !== key) return <ArrowUpDown size={14} className="opacity-0 group-hover:opacity-50" />;
+        return sortConfig.direction === 'ascending' ? <ArrowUp size={14} /> : <ArrowDown size={14} />;
     };
 
     const handleAnalyze = async () => {
@@ -510,19 +518,54 @@ export default function TikTokScraperPage() {
                                                 className="border-white/10 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                                             />
                                         </th>
-                                        <th className="px-4 py-3">Profile</th>
+                                        <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('username')}>
+                                            <div className="flex items-center gap-1">
+                                                Profile
+                                                {getSortIcon('username')}
+                                            </div>
+                                        </th>
                                         <th className="px-4 py-3">Contact</th>
-                                        <th className="px-4 py-3">Followers</th>
-                                        <th className="px-4 py-3">Likes</th>
-                                        <th className="px-4 py-3">Videos</th>
-                                        <th className="px-4 py-3">Avg Views</th>
-                                        <th className="px-4 py-3">ER</th>
+                                        <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('tt_followers')}>
+                                            <div className="flex items-center gap-1">
+                                                Followers
+                                                {getSortIcon('tt_followers')}
+                                            </div>
+                                        </th>
+                                        <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('total_likes')}>
+                                            <div className="flex items-center gap-1">
+                                                Likes
+                                                {getSortIcon('total_likes')}
+                                            </div>
+                                        </th>
+                                        <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('total_videos')}>
+                                            <div className="flex items-center gap-1">
+                                                Videos
+                                                {getSortIcon('total_videos')}
+                                            </div>
+                                        </th>
+                                        <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('avg_views')}>
+                                            <div className="flex items-center gap-1">
+                                                Avg Views
+                                                {getSortIcon('avg_views')}
+                                            </div>
+                                        </th>
+                                        <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('er')}>
+                                            <div className="flex items-center gap-1">
+                                                ER
+                                                {getSortIcon('er')}
+                                            </div>
+                                        </th>
                                         <th className="px-4 py-3">Details</th>
-                                        <th className="px-4 py-3">Actions</th>
+                                        <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('tier')}>
+                                            <div className="flex items-center gap-1">
+                                                Actions / Tier
+                                                {getSortIcon('tier')}
+                                            </div>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
-                                    {searchResults.map((item: any, idx) => (
+                                    {items.map((item: any, idx) => (
                                         <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
                                             <td className="px-4 py-3 align-top">
                                                 <Checkbox
