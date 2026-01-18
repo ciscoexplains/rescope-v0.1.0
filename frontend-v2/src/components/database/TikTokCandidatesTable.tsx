@@ -410,6 +410,7 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={handleExportCSV} className="cursor-pointer">
+                                <FileSpreadsheet className="mr-2 h-4 w-4" />
                                 Export to CSV
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={handleExportExcel} className="cursor-pointer">
