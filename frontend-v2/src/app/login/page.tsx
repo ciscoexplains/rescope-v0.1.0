@@ -94,12 +94,7 @@ export default function LoginPage() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <label className="text-sm font-medium text-foreground ml-1">Password</label>
-                                <a href="#" className="text-xs font-medium text-primary hover:text-primary/90 transition-colors">
-                                    Forgot password?
-                                </a>
-                            </div>
+                            <label className="text-sm font-medium text-foreground ml-1">Password</label>
                             <Input
                                 type="password"
                                 placeholder="••••••••"
@@ -109,6 +104,11 @@ export default function LoginPage() {
                                 disabled={loading}
                                 className="h-11 bg-background/50 border-input focus:border-primary focus:ring-primary/20 text-foreground"
                             />
+                            <div className="flex justify-end">
+                                <a href="#" className="text-xs font-medium text-primary hover:text-primary/90 transition-colors">
+                                    Forgot password?
+                                </a>
+                            </div>
                         </div>
                         <Button
                             type="submit"
