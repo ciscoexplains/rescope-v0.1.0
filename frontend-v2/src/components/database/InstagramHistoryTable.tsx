@@ -24,6 +24,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { WhatsAppButton } from '@/components/ui/whatsapp-button';
 
 interface InstagramProfile {
     id: string;
@@ -393,6 +394,7 @@ export default function InstagramHistoryTable() {
                                 <td className="px-4 py-4 align-top text-xs space-y-1">
                                     {profile.contact && (
                                         <div className="flex items-center gap-1 text-muted-foreground hover:text-foreground cursor-pointer" title="Phone">
+                                            <WhatsAppButton phone={profile.contact} className="mr-1" />
                                             📞 {profile.contact}
                                         </div>
                                     )}

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import { KOL_CATEGORIES } from '@/constants/categories';
 
 interface MassEditDialogProps {
     isOpen: boolean;
@@ -114,6 +115,20 @@ export default function MassEditDialog({ isOpen, onClose, selectedIds, platform,
                                         <SelectItem value="Mid/Macro">Mid/Macro</SelectItem>
                                         <SelectItem value="Macro">Macro</SelectItem>
                                         <SelectItem value="Mega">Mega</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            ) : fieldToUpdate === 'category' ? (
+                                <Select value={newValue} onValueChange={setNewValue}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select new category" />
+                                    </SelectTrigger>
+                                    <SelectContent className="max-h-[200px]">
+                                        {KOL_CATEGORIES.map((category) => (
+                                            <SelectItem key={category} value={category}>
+                                                {category}
+                                            </SelectItem>
+                                        ))}
+                                        <SelectItem value="Other">Other</SelectItem>
                                     </SelectContent>
                                 </Select>
                             ) : (

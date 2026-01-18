@@ -7,6 +7,7 @@ import MassEditDialog from './MassEditDialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { WhatsAppButton } from '@/components/ui/whatsapp-button';
 import { Checkbox } from '@/components/ui/checkbox';
 import * as XLSX from 'xlsx';
 import { useSortableData } from '@/hooks/useSortableData';
@@ -525,6 +526,7 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
                                 <td className="px-4 py-4 align-top text-xs space-y-1">
                                     {candidate.contact && (
                                         <div className="flex items-center gap-1 text-muted-foreground hover:text-foreground cursor-pointer" title="Phone">
+                                            <WhatsAppButton phone={candidate.contact} className="mr-1" />
                                             📞 {candidate.contact}
                                         </div>
                                     )}

@@ -24,6 +24,8 @@ import { MoveToCampaignModal } from '@/components/tools/MoveToCampaignModal';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from '@/components/ui/textarea';
+import { KOL_CATEGORIES } from '@/constants/categories';
+import { WhatsAppButton } from '@/components/ui/whatsapp-button';
 
 interface InstagramProfile {
     id?: string;
@@ -46,6 +48,7 @@ interface InstagramProfile {
     avatar?: string;
     bio?: string;
     last_post_days?: number;
+    category?: string;
 }
 
 export default function InstagramScraperPage() {
@@ -100,6 +103,26 @@ export default function InstagramScraperPage() {
                 setShowResults(true);
             }
         } catch (error) { console.error(error); }
+    };
+    const updateField = async (index: number, field: string, value: any) => {
+        // Optimistic update
+        const newResults = [...results];
+        newResults[index] = { ...newResults[index], [field]: value };
+        setResults(newResults);
+
+        // Update DB
+        const item = newResults[index];
+        if (item.id) {
+            const { error } = await supabase
+                .from('scraper_history_instagram')
+                .update({ [field]: value })
+                .eq('id', item.id);
+
+            if (error) {
+                console.error("Failed to update history", error);
+                toast.error("Failed to save change");
+            }
+        }
     };
 
     // Scraping Handler
@@ -445,6 +468,7 @@ export default function InstagramScraperPage() {
                                         <th className="px-4 py-3">Followers</th>
                                         <th className="px-4 py-3">Following</th>
                                         <th className="px-4 py-3">Tier</th>
+                                        <th className="px-4 py-3">Category</th>
                                         <th className="px-4 py-3">Median Views</th>
                                         <th className="px-4 py-3">ER</th>
                                     </tr>
@@ -464,7 +488,7 @@ export default function InstagramScraperPage() {
                                             </td>
                                             <td className="px-4 py-4 align-top text-xs space-y-1">
                                                 {profile.email && <div>✉️ {profile.email}</div>}
-                                                {profile.contact && <div>📞 {profile.contact}</div>}
+                                                {profile.contact && <div className="flex items-center gap-1"><WhatsAppButton phone={profile.contact} className="mr-1" />📞 {profile.contact}</div>}
                                                 {profile.website && <div className="truncate w-32">🌐 {profile.website}</div>}
                                             </td>
                                             <td className="px-4 py-4">{profile.followers?.toLocaleString()}</td>
@@ -477,6 +501,21 @@ export default function InstagramScraperPage() {
                                                                 'bg-yellow-900/30 text-yellow-400'}`}>
                                                     {profile.tier || 'Nano'}
                                                 </span>
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <select
+                                                    className="w-full h-7 rounded-md border-none bg-white/5 px-2 text-xs focus:bg-secondary/50 appearance-none cursor-pointer text-foreground min-w-[140px]"
+                                                    value={profile.category || ''}
+                                                    onChange={(e) => updateField(idx, 'category', e.target.value)}
+                                                >
+                                                    <option value="" className="bg-zinc-900 text-muted-foreground">Select Category</option>
+                                                    {KOL_CATEGORIES.map((category) => (
+                                                        <option key={category} value={category} className="bg-zinc-900">
+                                                            {category}
+                                                        </option>
+                                                    ))}
+                                                    <option value="Other" className="bg-zinc-900">Other</option>
+                                                </select>
                                             </td>
                                             <td className="px-4 py-4 text-muted-foreground">{profile.median_views?.toLocaleString()}</td>
                                             <td className="px-4 py-4 font-medium text-green-400">{profile.er}%</td>

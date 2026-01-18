@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import { KOL_CATEGORIES } from '@/constants/categories';
 
 interface EditCandidateDialogProps {
     isOpen: boolean;
@@ -215,11 +216,22 @@ export default function EditCandidateDialog({ isOpen, onClose, candidate, platfo
                     <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="category">Category</Label>
-                            <Input
-                                id="category"
+                            <Select
                                 value={formData.category || ''}
-                                onChange={(e) => handleChange('category', e.target.value)}
-                            />
+                                onValueChange={(value) => handleChange('category', value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select category" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[200px]">
+                                    {KOL_CATEGORIES.map((category) => (
+                                        <SelectItem key={category} value={category}>
+                                            {category}
+                                        </SelectItem>
+                                    ))}
+                                    <SelectItem value="Other">Other</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="region">Region</Label>
