@@ -198,6 +198,11 @@ export default function InstagramCandidatesTable({ campaignId }: InstagramCandid
             return;
         }
 
+        if (filteredCandidates.some(c => c.status === 'New')) {
+            toast.error("Cannot export while there are unreviewed candidates.");
+            return;
+        }
+
         const headers = [
             "Name", "Username", "Followers", "Following", "Posts", "Likes", "Comments", "Median Views", "ER", "Contact", "Email", "Website", "Tier", "Category", "Status"
         ];
@@ -236,6 +241,11 @@ export default function InstagramCandidatesTable({ campaignId }: InstagramCandid
     const handleExportExcel = () => {
         if (filteredCandidates.length === 0) {
             toast.error("No candidates to export");
+            return;
+        }
+
+        if (filteredCandidates.some(c => c.status === 'New')) {
+            toast.error("Cannot export while there are unreviewed candidates.");
             return;
         }
 
