@@ -102,7 +102,7 @@ export default function CreateCampaignModal({ isOpen, onClose, onSuccess }: Crea
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <Input
                         label="Campaign Name"
-                        placeholder="e.g. Acme Corp"
+                        placeholder="[Brand Name] - [Product Name] - [Campaign Duration]"
                         value={brandName}
                         onChange={(e) => setBrandName(e.target.value)}
                         fullWidth

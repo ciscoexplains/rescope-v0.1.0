@@ -538,8 +538,8 @@ export default function InstagramCandidatesTable({ campaignId }: InstagramCandid
                                 <td className="px-4 py-4 align-top text-right">
                                     <Button
                                         variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                                         onClick={() => setEditingCandidate(candidate)}
                                         title="Edit Details"
                                     >
@@ -547,8 +547,8 @@ export default function InstagramCandidatesTable({ campaignId }: InstagramCandid
                                     </Button>
                                     <Button
                                         variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                                         onClick={() => initiateDeleteCandidate(candidate.id)}
                                     >
                                         <Trash2 size={16} />
