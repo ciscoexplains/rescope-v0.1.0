@@ -97,7 +97,7 @@ export default function InstagramHistoryTable() {
             if (error) throw error;
             setProfiles(data || []);
         } catch (error: any) {
-            console.error('Error fetching profiles:', error);
+            console.error('Error fetching profiles:', JSON.stringify(error, null, 2), error.message, error.details, error.hint);
             toast.error('Failed to load Instagram profiles');
         } finally {
             setLoading(false);
