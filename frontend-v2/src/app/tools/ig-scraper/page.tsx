@@ -50,54 +50,21 @@ interface InstagramProfile {
 
 export default function InstagramScraperPage() {
     // --- UI State ---
-    // --- UI State ---
     const [loading, setLoading] = useState(false);
-    const [isAdvancedOpen, setIsAdvancedOpen] = useState(true);
+    const [isAdvancedOpen, setIsAdvancedOpen] = useState(false); // Default closed
 
-    // --- Section 1: Discovery Settings ---
-    const [startProfiles, setStartProfiles] = useState(''); // Text input
-    const [searchDepth, setSearchDepth] = useState('1'); // Dropdown
-    const [maxProfiles, setMaxProfiles] = useState(50); // Number input
-
-    // --- Section 2: Data Extraction Options ---
-    const [extractEmail, setExtractEmail] = useState(true);
-    const [extractPhone, setExtractPhone] = useState(true);
-    const [extractWebsite, setExtractWebsite] = useState(true);
-    const [extractCategory, setExtractCategory] = useState(false);
-    const [extractAddress, setExtractAddress] = useState(false); // Physical Address
-    const [calculateER, setCalculateER] = useState(true);
-    const [extractCaptions, setExtractCaptions] = useState(false);
-    const [deepSearch, setDeepSearch] = useState(false);
-
-    // --- Section 3: Advanced Filtering ---
-    // Keywords
-    const [keywords, setKeywords] = useState<string[]>([]);
-    const [newKeyword, setNewKeyword] = useState('');
-    const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
-    const [bulkKeywords, setBulkKeywords] = useState('');
-    const [keywordLocation, setKeywordLocation] = useState('anywhere'); // Dropdown: Biography, Full Name
-
-    const [locationKeywords, setLocationKeywords] = useState('');
-    const [profileLanguage, setProfileLanguage] = useState('any');
-
+    // --- Discovery Settings ---
+    const [startProfiles, setStartProfiles] = useState('');
+    const [searchDepth, setSearchDepth] = useState('1');
+    const [maxProfiles, setMaxProfiles] = useState(50);
     const [minFollowers, setMinFollowers] = useState<number | ''>('');
     const [maxFollowers, setMaxFollowers] = useState<number | ''>('');
 
-    const [lastPostDays, setLastPostDays] = useState<number | ''>('');
-
-    const [minPosts, setMinPosts] = useState<number | ''>('');
-    const [postsPeriod, setPostsPeriod] = useState('30'); // Dropdown: In the last X days
-
-    const [recentReels, setRecentReels] = useState('disabled');
+    // --- Advanced Filtering ---
+    const [accountType, setAccountType] = useState('any'); // Any, Business, Creator
     const [medianViews, setMedianViews] = useState<number | ''>('');
-    const [viewsRatio, setViewsRatio] = useState(false); // Ratio >= 30%
-
-    const [contactInfo, setContactInfo] = useState('any');
-    const [websitePresence, setWebsitePresence] = useState('any');
-    const [accountType, setAccountType] = useState('any');
-    const [filterInfluencers, setFilterInfluencers] = useState(false);
-    const [businessCategory, setBusinessCategory] = useState('any');
     const [mustBeVerified, setMustBeVerified] = useState(false);
+    const [keywordString, setKeywordString] = useState(''); // Comma separated
 
     // --- Results & Move Logic ---
     const [results, setResults] = useState<InstagramProfile[]>([]);
@@ -131,29 +98,10 @@ export default function InstagramScraperPage() {
         } catch (error) { console.error(error); }
     };
 
-    // Keyword Logic
-    const addKeyword = () => {
-        if (newKeyword.trim()) {
-            setKeywords([...keywords, newKeyword.trim()]);
-            setNewKeyword('');
-        }
-    };
-    const removeKeyword = (idx: number) => {
-        setKeywords(keywords.filter((_, i) => i !== idx));
-    };
-    const openBulkEdit = () => {
-        setBulkKeywords(keywords.join('\n'));
-        setIsBulkEditOpen(true);
-    };
-    const saveBulkKeywords = () => {
-        setKeywords(bulkKeywords.split('\n').map(k => k.trim()).filter(k => k));
-        setIsBulkEditOpen(false);
-    };
-
     // Scraping Handler
     const handleStart = async () => {
         if (!startProfiles.trim()) {
-            toast.error('Please enter Start Profiles');
+            toast.error('Please enter usernames');
             return;
         }
 
@@ -162,34 +110,49 @@ export default function InstagramScraperPage() {
         if (results.length > 0) setShowResults(true);
 
         const usernameList = startProfiles.split(',').map(u => u.trim()).filter(u => u);
+        const keywordList = keywordString.split(',').map(k => k.trim()).filter(k => k);
 
         try {
             const payload = {
                 startProfiles: usernameList.join(','),
                 usernames: usernameList,
                 searchType: 'usernames',
-                maxProfiles: maxProfiles, // Match backend expectation
+                maxProfiles: maxProfiles,
                 searchDepth: searchDepth,
 
-                extractEmail, extractPhone, extractWebsite, extractCategory,
-                extractAddress, calculateER, extractCaptions, deepSearch,
+                // Hidden Data Options (Defaults)
+                extractEmail: true,
+                extractPhone: true,
+                extractWebsite: true,
+                // Set 'false' defaults as requested
+                extractCategory: false,
+                extractAddress: false,
+                extractCaptions: false,
+                deepSearch: false,
+                // Set 'true' default as requested
+                calculateER: true,
 
-                keywords, keywordLocation,
-                locationKeywords, profileLanguage,
+                // Advanced Filtering
+                keywords: keywordList,
+                keywordLocation: 'anywhere', // Default hidden
                 minFollowers: Number(minFollowers) || 0,
                 maxFollowers: Number(maxFollowers) || 0,
-                lastPostDays: Number(lastPostDays) || 0,
-                minPosts: Number(minPosts) || 0,
-                postsPeriod,
-                recentReels,
-                medianViews: Number(medianViews) || 0,
-                viewsRatio,
-                contactInfo,
-                websitePresence,
                 accountType,
-                filterInfluencers,
-                businessCategory,
-                mustBeVerified
+                mustBeVerified,
+                medianViews: Number(medianViews) || 0,
+
+                // Defaults for unused/removed filters to safe values
+                locationKeywords: '',
+                profileLanguage: 'any',
+                lastPostDays: 0,
+                minPosts: 0,
+                postsPeriod: '30',
+                recentReels: 'disabled',
+                viewsRatio: false,
+                contactInfo: 'any',
+                websitePresence: 'any',
+                filterInfluencers: false,
+                businessCategory: 'any'
             };
 
             const response = await fetch('/api/apify/instagram-scraper', {
@@ -204,12 +167,12 @@ export default function InstagramScraperPage() {
                 const mappedForDB = data.results.map((p: any) => ({
                     username: p.username || 'unknown',
                     full_name: p.full_name || '',
-                    bio: p.bio || '', // API sends bio
+                    bio: p.bio || '',
                     followers: p.followers || 0,
                     following: p.following || 0,
                     posts_count: p.posts_count || 0,
                     is_verified: p.is_verified || false,
-                    avatar: p.avatar || '', // API sends avatar
+                    avatar: p.avatar || '',
                     website: p.external_url || p.website || '',
                     er: p.er || 0,
                     contact: p.contact || '',
@@ -226,23 +189,23 @@ export default function InstagramScraperPage() {
                     profile_language: p.profile_language || '',
                     last_post_days: p.last_post_days || 0
                 }));
-                // Update local state immediately so user sees results
+                // Update local state immediately
                 setResults(prev => [...mappedForDB, ...prev]);
                 setShowResults(true);
 
-                // Save to Supabase (Upsert to handle duplicates if any)
+                // Save to Supabase
                 const { error: saveError } = await supabase
                     .from('scraper_history_instagram')
                     .upsert(mappedForDB, { onConflict: 'username', ignoreDuplicates: true });
 
                 if (saveError) {
                     console.error("Error saving history:", saveError);
-                    toast.error("Results shown but failed to save to history: " + saveError.message);
+                    toast.error("Results shown but failed to save to history");
                 } else {
                     toast.success("Results saved to history");
                 }
             } else {
-                toast.info('No profiles found. Try separate usernames with commas.');
+                toast.info('No profiles found.');
             }
         } catch (e: any) {
             toast.error(e.message);
@@ -314,334 +277,205 @@ export default function InstagramScraperPage() {
                 </Link>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-12 items-start">
-                {/* Configuration Column */}
-                <div className="lg:col-span-3 space-y-6">
-                    {/* Section 1: Discovery Settings */}
-                    <Card className="border-border bg-card/50 backdrop-blur">
-                        <CardHeader><CardTitle className="text-base">Discovery Settings</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label>Start Profiles</Label>
-                                <Textarea
-                                    value={startProfiles}
-                                    onChange={(e) => setStartProfiles(e.target.value)}
-                                    placeholder="@username1, @username2"
-                                    className="min-h-[100px] font-mono text-xs"
+            {/* Discovery Settings - Top */}
+            <Card className="border-border bg-card/50 backdrop-blur">
+                <CardHeader>
+                    <CardTitle className="text-base">Discovery Settings</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {/* Key in Username */}
+                    <div className="space-y-2">
+                        <Label>Key in username(s)</Label>
+                        <Textarea
+                            value={startProfiles}
+                            onChange={(e) => setStartProfiles(e.target.value)}
+                            placeholder="@username1, @username2"
+                            className="min-h-[80px] font-mono text-sm"
+                        />
+                        <p className="text-[10px] text-muted-foreground">Comma separated</p>
+                    </div>
+
+                    <div className="flex flex-wrap items-end gap-6">
+                        {/* Maximum Profiles */}
+                        <div className="space-y-2">
+                            <Label>Maximum Profiles</Label>
+                            <Input
+                                type="number"
+                                value={maxProfiles}
+                                onChange={(e) => setMaxProfiles(parseInt(e.target.value) || 0)}
+                                min={1}
+                                className="w-[150px]"
+                            />
+                        </div>
+                        {/* Followers Range */}
+                        <div className="space-y-2">
+                            <Label>Followers Range</Label>
+                            <div className="flex items-center gap-2 w-[300px]">
+                                <Input
+                                    type="number"
+                                    placeholder="Min"
+                                    value={minFollowers}
+                                    onChange={(e) => setMinFollowers(e.target.value === '' ? '' : parseInt(e.target.value))}
+                                    className="flex-1"
                                 />
-                                <p className="text-[10px] text-muted-foreground">Comma separated</p>
+                                <span className="text-muted-foreground text-sm font-medium">—</span>
+                                <Input
+                                    type="number"
+                                    placeholder="Max"
+                                    value={maxFollowers}
+                                    onChange={(e) => setMaxFollowers(e.target.value === '' ? '' : parseInt(e.target.value))}
+                                    className="flex-1"
+                                />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                        </div>
+                    </div>
+
+                    {/* Advanced Filtering Toggle */}
+                    <div className="space-y-4 pt-2">
+                        <div
+                            className="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-primary transition-colors w-fit"
+                            onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+                        >
+                            {isAdvancedOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            Advanced filtering
+                        </div>
+
+                        {/* Advanced Fields */}
+                        {isAdvancedOpen && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pl-4 border-l-2 border-border/50 animate-in slide-in-from-top-2 duration-200">
+                                {/* Account Type */}
                                 <div className="space-y-2">
-                                    <Label>Depth</Label>
-                                    <Select value={searchDepth} onValueChange={setSearchDepth}>
+                                    <Label>Account Type</Label>
+                                    <Select value={accountType} onValueChange={setAccountType}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="1">1</SelectItem>
-                                            <SelectItem value="2">2</SelectItem>
-                                            <SelectItem value="3">3</SelectItem>
+                                            <SelectItem value="any">Any (Default)</SelectItem>
+                                            <SelectItem value="business">Business</SelectItem>
+                                            <SelectItem value="creator">Creator</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
+
+                                {/* Median Views */}
                                 <div className="space-y-2">
-                                    <Label>Max Profiles</Label>
+                                    <Label>Median Views</Label>
                                     <Input
                                         type="number"
-                                        value={maxProfiles}
-                                        onChange={(e) => setMaxProfiles(parseInt(e.target.value) || 0)}
-                                        min={1}
+                                        value={medianViews}
+                                        onChange={(e) => setMedianViews(e.target.value === '' ? '' : parseInt(e.target.value))}
+                                        placeholder="0"
+                                    />
+                                </div>
+
+                                {/* Verified Accounts Only */}
+                                <div className="flex items-center space-x-2 h-full pt-6">
+                                    <Switch id="verified" checked={mustBeVerified} onCheckedChange={setMustBeVerified} />
+                                    <Label htmlFor="verified" className="cursor-pointer">Verified Accounts Only</Label>
+                                </div>
+
+                                {/* Filter by Keywords */}
+                                <div className="space-y-2 md:col-span-2">
+                                    <div className="flex items-center gap-2">
+                                        <Label>Filter by Keyword(s)</Label>
+                                        <div className="group relative">
+                                            <Info size={14} className="text-muted-foreground cursor-help" />
+                                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-64 bg-black/90 text-white text-xs p-2 rounded z-50 pointer-events-none">
+                                                Key in the keyword and separate with comma (,) i.e Contoh Kata Kunci, Kata, Kata Kunci, etc
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <Input
+                                        value={keywordString}
+                                        onChange={(e) => setKeywordString(e.target.value)}
+                                        placeholder="Enter keywords..."
                                     />
                                 </div>
                             </div>
-                            <Button className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 shadow-lg shadow-pink-500/20" onClick={handleStart} disabled={loading}>
-                                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Scraping...</> : <><Play className="mr-2 h-4 w-4" /> Start Scraping</>}
-                            </Button>
-                        </CardContent>
-                    </Card>
-
-                    {/* Section 2: Data Extraction Options */}
-                    <Card className="border-border bg-card/50 backdrop-blur">
-                        <CardHeader><CardTitle className="text-base">Data Options</CardTitle></CardHeader>
-                        <CardContent className="space-y-2">
-                            <DataOption label="Extract Email" checked={extractEmail} onChange={setExtractEmail} />
-                            <DataOption label="Extract Phone" checked={extractPhone} onChange={setExtractPhone} />
-                            <DataOption label="Extract Website" checked={extractWebsite} onChange={setExtractWebsite} />
-                            <DataOption label="Business Category" checked={extractCategory} onChange={setExtractCategory} />
-                            <DataOption label="Physical Address" checked={extractAddress} onChange={setExtractAddress} />
-                            <DataOption label="Calculate ER" checked={calculateER} onChange={setCalculateER} />
-                            <DataOption label="Latest Captions" checked={extractCaptions} onChange={setExtractCaptions} />
-                            <DataOption label="Deep Search" checked={deepSearch} onChange={setDeepSearch} />
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Right Column: Advanced & Results */}
-                <div className="lg:col-span-9 space-y-6">
-
-                    {/* Section 3: Advanced Filtering */}
-                    <Card className="border-border bg-card/50 backdrop-blur">
-                        <div
-                            className="p-6 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors rounded-t-lg"
-                            onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-                        >
-                            <div className="flex items-center gap-2">
-                                <CardTitle className="text-base">Advanced Filtering</CardTitle>
-                                {!isAdvancedOpen && <span className="text-xs text-muted-foreground ml-2">(Click to expand)</span>}
-                            </div>
-                            {isAdvancedOpen ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                        </div>
-
-                        {isAdvancedOpen && (
-                            <CardContent className="space-y-6 pt-0 border-t border-border/50 p-6">
-                                {/* Keywords */}
-                                <div className="space-y-3 bg-secondary/10 p-4 rounded-lg">
-                                    <div className="flex justify-between items-center">
-                                        <Label>Filter by Keywords</Label>
-                                        <Button variant="outline" size="sm" onClick={openBulkEdit} className="h-6 gap-1 text-xs px-2"><Edit size={12} /> Bulk edit</Button>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            value={newKeyword}
-                                            onChange={(e) => setNewKeyword(e.target.value)}
-                                            placeholder="Add keyword..."
-                                            className="h-8 max-w-sm"
-                                            onKeyDown={(e) => e.key === 'Enter' && addKeyword()}
-                                        />
-                                        <Button size="sm" onClick={addKeyword} variant="secondary" className="h-8">+ Add</Button>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {keywords.map((k, i) => (
-                                            <span key={i} className="px-2 py-1 bg-primary/10 text-primary rounded-md text-xs flex items-center gap-1 group">
-                                                {k}
-                                                <X size={12} className="cursor-pointer opacity-50 group-hover:opacity-100" onClick={() => removeKeyword(i)} />
-                                            </span>
-                                        ))}
-                                        {keywords.length === 0 && <span className="text-xs text-muted-foreground italic">No keywords added</span>}
-                                    </div>
-                                    <div className="space-y-2 pt-2">
-                                        <Label className="text-xs">Search Keywords In</Label>
-                                        <Select value={keywordLocation} onValueChange={setKeywordLocation}>
-                                            <SelectTrigger className="h-8 w-[200px]"><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="anywhere">Anywhere</SelectItem>
-                                                <SelectItem value="biography">Biography</SelectItem>
-                                                <SelectItem value="full_name">Full Name</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <div className="space-y-2">
-                                        <Label>Location Keywords</Label>
-                                        <Input value={locationKeywords} onChange={(e) => setLocationKeywords(e.target.value)} placeholder="e.g. Jakarta" />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label>Filter by Profile Language</Label>
-                                        <Select value={profileLanguage} onValueChange={setProfileLanguage}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="any">Any</SelectItem>
-                                                <SelectItem value="en">English</SelectItem>
-                                                <SelectItem value="id">Indonesian</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="space-y-2 col-span-2">
-                                        <Label>Follower Count Range</Label>
-                                        <div className="flex gap-3">
-                                            <Input type="number" placeholder="Min" value={minFollowers} onChange={(e) => setMinFollowers(e.target.value === '' ? '' : parseInt(e.target.value))} />
-                                            <Input type="number" placeholder="Max" value={maxFollowers} onChange={(e) => setMaxFollowers(e.target.value === '' ? '' : parseInt(e.target.value))} />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label>Filter by Last Post Date (Days ago)</Label>
-                                        <Input type="number" value={lastPostDays} onChange={(e) => setLastPostDays(e.target.value === '' ? '' : parseInt(e.target.value))} />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label>Posting Frequency (Min Posts)</Label>
-                                        <div className="flex gap-2">
-                                            <Input type="number" value={minPosts} onChange={(e) => setMinPosts(e.target.value === '' ? '' : parseInt(e.target.value))} placeholder="Min" />
-                                            <Select value={postsPeriod} onValueChange={setPostsPeriod}>
-                                                <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="7">Last 7 days</SelectItem>
-                                                    <SelectItem value="30">Last 30 days</SelectItem>
-                                                    <SelectItem value="90">Last 90 days</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label>Filter by Recent Reels</Label>
-                                        <Select value={recentReels} onValueChange={setRecentReels}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="disabled">Disabled</SelectItem>
-                                                <SelectItem value="active">Active</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label>Filter by Median Views</Label>
-                                        <Input type="number" value={medianViews} onChange={(e) => setMedianViews(e.target.value === '' ? '' : parseInt(e.target.value))} />
-                                    </div>
-
-                                    <div className="col-span-2 flex items-center space-x-2 py-2">
-                                        <Checkbox id="viewsRatio" checked={viewsRatio} onCheckedChange={(c) => setViewsRatio(c as boolean)} />
-                                        <Label htmlFor="viewsRatio" className="cursor-pointer">Filter by Views / Followers Ratio ≥ 30%</Label>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label>Filter by Contact Info</Label>
-                                        <Select value={contactInfo} onValueChange={setContactInfo}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="any">Any</SelectItem>
-                                                <SelectItem value="present">Present</SelectItem>
-                                                <SelectItem value="missing">Missing</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label>Filter by Website</Label>
-                                        <Select value={websitePresence} onValueChange={setWebsitePresence}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="any">Any</SelectItem>
-                                                <SelectItem value="present">Present</SelectItem>
-                                                <SelectItem value="missing">Missing</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label>Filter by Account Type</Label>
-                                        <Select value={accountType} onValueChange={setAccountType}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="any">Any</SelectItem>
-                                                <SelectItem value="business">Business</SelectItem>
-                                                <SelectItem value="creator">Creator</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label>Business Category</Label>
-                                        <Select value={businessCategory} onValueChange={setBusinessCategory}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="any">Any</SelectItem>
-                                                <SelectItem value="shopping">Shopping</SelectItem>
-                                                <SelectItem value="beauty">Beauty</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="col-span-2 flex items-center justify-between py-2 border-t border-border/50 mt-2 pt-4">
-                                        <div className="space-y-0.5">
-                                            <Label className="text-base">Filter for Influencers Only</Label>
-                                            <p className="text-xs text-muted-foreground">Try to identify influencers</p>
-                                        </div>
-                                        <Switch checked={filterInfluencers} onCheckedChange={setFilterInfluencers} />
-                                    </div>
-
-                                    <div className="col-span-2 flex items-center justify-between py-2 border-t border-border/50">
-                                        <div className="space-y-0.5">
-                                            <Label className="text-base">Filter by Verification</Label>
-                                            <p className="text-xs text-muted-foreground">Verified accounts only</p>
-                                        </div>
-                                        <Switch checked={mustBeVerified} onCheckedChange={setMustBeVerified} />
-                                    </div>
-
-                                </div>
-                            </CardContent>
                         )}
-                    </Card>
+                    </div>
 
-                    {/* Results Table */}
-                    {showResults && results.length > 0 && (
-                        <Card className="border-none shadow-none bg-transparent">
-                            <CardHeader className="flex flex-row items-center justify-between pb-2 px-0">
-                                <div>
-                                    <CardTitle>Instagram Results ({results.length})</CardTitle>
-                                    <CardDescription>Manage scraped profiles</CardDescription>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Button variant="ghost" size="sm" onClick={handleClearAll} className="text-muted-foreground hover:text-destructive hover:bg-white/5">
-                                        <Trash2 size={16} className="mr-2" /> Clear All
-                                    </Button>
-                                    {selectedIndices.size > 0 && (
-                                        <Button onClick={() => setIsMoveModalOpen(true)} className="gap-2 shadow-none">
-                                            <ArrowRight size={16} /> Move to Campaign ({selectedIndices.size})
-                                        </Button>
-                                    )}
-                                </div>
-                            </CardHeader>
-                            <CardContent className="px-0">
-                                <div className="rounded-xl overflow-hidden overflow-x-auto bg-secondary/10">
-                                    <table className="w-full text-sm text-left text-foreground">
-                                        <thead className="text-xs text-muted-foreground uppercase bg-white/5 sticky top-0 whitespace-nowrap">
-                                            <tr>
-                                                <th className="px-4 py-3 w-[40px]"><Checkbox checked={results.length > 0 && selectedIndices.size === results.length} onCheckedChange={toggleSelectAll} className="border-white/10" /></th>
-                                                <th className="px-4 py-3">Profile</th>
-                                                <th className="px-4 py-3">Contact</th>
-                                                <th className="px-4 py-3">Followers</th>
-                                                <th className="px-4 py-3">Following</th>
-                                                <th className="px-4 py-3">Tier</th>
-                                                <th className="px-4 py-3">Median Views</th>
-                                                <th className="px-4 py-3">ER</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-white/5">
-                                            {results.map((profile, idx) => (
-                                                <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
-                                                    <td className="px-4 py-4 align-top"><Checkbox checked={selectedIndices.has(idx)} onCheckedChange={() => toggleSelect(idx)} className="border-white/10" /></td>
-                                                    <td className="px-4 py-4 align-top">
-                                                        <div className="flex items-start gap-3">
-                                                            {profile.avatar && <img src={profile.avatar} alt="" className="w-10 h-10 rounded-full object-cover border border-white/10" />}
-                                                            <div>
-                                                                <div className="font-medium flex items-center gap-1">{profile.full_name || profile.username} {profile.is_verified && <CheckCircle2 size={12} className="text-blue-500" />}</div>
-                                                                <a href={profile.external_url || `https://instagram.com/${profile.username}`} target="_blank" className="text-xs text-blue-400 hover:underline">@{profile.username}</a>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-4 align-top text-xs space-y-1">
-                                                        {profile.email && <div>✉️ {profile.email}</div>}
-                                                        {profile.contact && <div>📞 {profile.contact}</div>}
-                                                        {profile.website && <div className="truncate w-32">🌐 {profile.website}</div>}
-                                                    </td>
-                                                    <td className="px-4 py-4">{profile.followers?.toLocaleString()}</td>
-                                                    <td className="px-4 py-4 text-muted-foreground">{profile.following?.toLocaleString()}</td>
-                                                    <td className="px-4 py-4">
-                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium 
+                    {/* Start Button */}
+                    <div className="flex justify-end pt-4">
+                        <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 shadow-lg shadow-pink-500/20" onClick={handleStart} disabled={loading}>
+                            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Scraping...</> : <><Play className="mr-2 h-4 w-4" /> Start Scraping</>}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Results Table */}
+            {showResults && results.length > 0 && (
+                <Card className="border-none shadow-none bg-transparent">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2 px-0">
+                        <div>
+                            <CardTitle>Instagram Results ({results.length})</CardTitle>
+                            <CardDescription>Manage scraped profiles</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="sm" onClick={handleClearAll} className="text-muted-foreground hover:text-destructive hover:bg-white/5">
+                                <Trash2 size={16} className="mr-2" /> Clear All
+                            </Button>
+                            {selectedIndices.size > 0 && (
+                                <Button onClick={() => setIsMoveModalOpen(true)} className="gap-2 shadow-none">
+                                    <ArrowRight size={16} /> Move to Campaign ({selectedIndices.size})
+                                </Button>
+                            )}
+                        </div>
+                    </CardHeader>
+                    <CardContent className="px-0">
+                        <div className="rounded-xl overflow-hidden overflow-x-auto bg-secondary/10">
+                            <table className="w-full text-sm text-left text-foreground">
+                                <thead className="text-xs text-muted-foreground uppercase bg-white/5 sticky top-0 whitespace-nowrap">
+                                    <tr>
+                                        <th className="px-4 py-3 w-[40px]"><Checkbox checked={results.length > 0 && selectedIndices.size === results.length} onCheckedChange={toggleSelectAll} className="border-white/10" /></th>
+                                        <th className="px-4 py-3">Profile</th>
+                                        <th className="px-4 py-3">Contact</th>
+                                        <th className="px-4 py-3">Followers</th>
+                                        <th className="px-4 py-3">Following</th>
+                                        <th className="px-4 py-3">Tier</th>
+                                        <th className="px-4 py-3">Median Views</th>
+                                        <th className="px-4 py-3">ER</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {results.map((profile, idx) => (
+                                        <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
+                                            <td className="px-4 py-4 align-top"><Checkbox checked={selectedIndices.has(idx)} onCheckedChange={() => toggleSelect(idx)} className="border-white/10" /></td>
+                                            <td className="px-4 py-4 align-top">
+                                                <div className="flex items-start gap-3">
+                                                    {profile.avatar && <img src={profile.avatar} alt="" className="w-10 h-10 rounded-full object-cover border border-white/10" />}
+                                                    <div>
+                                                        <div className="font-medium flex items-center gap-1">{profile.full_name || profile.username} {profile.is_verified && <CheckCircle2 size={12} className="text-blue-500" />}</div>
+                                                        <a href={profile.external_url || `https://instagram.com/${profile.username}`} target="_blank" className="text-xs text-blue-400 hover:underline">@{profile.username}</a>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-4 align-top text-xs space-y-1">
+                                                {profile.email && <div>✉️ {profile.email}</div>}
+                                                {profile.contact && <div>📞 {profile.contact}</div>}
+                                                {profile.website && <div className="truncate w-32">🌐 {profile.website}</div>}
+                                            </td>
+                                            <td className="px-4 py-4">{profile.followers?.toLocaleString()}</td>
+                                            <td className="px-4 py-4 text-muted-foreground">{profile.following?.toLocaleString()}</td>
+                                            <td className="px-4 py-4">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium 
                                                             ${profile.tier === 'Nano' ? 'bg-zinc-800 text-zinc-300' :
-                                                                profile.tier === 'Micro' ? 'bg-blue-900/30 text-blue-400' :
-                                                                    profile.tier === 'Mid/Macro' ? 'bg-purple-900/30 text-purple-400' :
-                                                                        'bg-yellow-900/30 text-yellow-400'}`}>
-                                                            {profile.tier || 'Nano'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-4 py-4 text-muted-foreground">{profile.median_views?.toLocaleString()}</td>
-                                                    <td className="px-4 py-4 font-medium text-green-400">{profile.er}%</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
-                </div>
-            </div>
+                                                        profile.tier === 'Micro' ? 'bg-blue-900/30 text-blue-400' :
+                                                            profile.tier === 'Mid/Macro' ? 'bg-purple-900/30 text-purple-400' :
+                                                                'bg-yellow-900/30 text-yellow-400'}`}>
+                                                    {profile.tier || 'Nano'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-4 text-muted-foreground">{profile.median_views?.toLocaleString()}</td>
+                                            <td className="px-4 py-4 font-medium text-green-400">{profile.er}%</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             <MoveToCampaignModal
                 open={isMoveModalOpen}
@@ -650,28 +484,6 @@ export default function InstagramScraperPage() {
                 platform="instagram"
                 onSuccess={handleMoveSuccess}
             />
-
-            <Dialog open={isBulkEditOpen} onOpenChange={setIsBulkEditOpen}>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>Bulk Edit Keywords</DialogTitle></DialogHeader>
-                    <Textarea
-                        value={bulkKeywords}
-                        onChange={(e) => setBulkKeywords(e.target.value)}
-                        placeholder="Enter keywords, one per line"
-                        className="min-h-[200px]"
-                    />
-                    <DialogFooter><Button onClick={saveBulkKeywords}>Save Keywords</Button></DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
-    );
-}
-
-function DataOption({ label, checked, onChange }: { label: string, checked: boolean, onChange: (c: boolean) => void }) {
-    return (
-        <div className="flex items-center justify-between py-1.5">
-            <Label className="font-normal text-sm cursor-pointer" onClick={() => onChange(!checked)}>{label}</Label>
-            <Switch checked={checked} onCheckedChange={onChange} />
         </div>
     );
 }
