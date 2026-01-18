@@ -78,9 +78,13 @@ export default function InstagramScraperPage() {
 
     const loadExistingResults = async () => {
         try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
             const { data, error } = await supabase
                 .from('scraper_history_instagram')
                 .select('*')
+                .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -113,6 +117,13 @@ export default function InstagramScraperPage() {
         const keywordList = keywordString.split(',').map(k => k.trim()).filter(k => k);
 
         try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                toast.error('You must be logged in to save results');
+                setLoading(false);
+                return;
+            }
+
             const payload = {
                 startProfiles: usernameList.join(','),
                 usernames: usernameList,
@@ -165,6 +176,7 @@ export default function InstagramScraperPage() {
 
             if (data.results?.length) {
                 const mappedForDB = data.results.map((p: any) => ({
+                    user_id: user.id, // Add isolation
                     username: p.username || 'unknown',
                     full_name: p.full_name || '',
                     bio: p.bio || '',
@@ -196,7 +208,7 @@ export default function InstagramScraperPage() {
                 // Save to Supabase
                 const { error: saveError } = await supabase
                     .from('scraper_history_instagram')
-                    .upsert(mappedForDB, { onConflict: 'username', ignoreDuplicates: true });
+                    .upsert(mappedForDB, { onConflict: 'username', ignoreDuplicates: true }); // Note: onConflict might need composite key (username, user_id) if supported by DB
 
                 if (saveError) {
                     console.error("Error saving history:", saveError);

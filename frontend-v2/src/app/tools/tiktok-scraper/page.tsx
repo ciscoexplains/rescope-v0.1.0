@@ -30,23 +30,19 @@ export default function TikTokScraperPage() {
     }, []);
 
     const fetchHistory = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
         const { data, error } = await supabase
             .from('scraper_history_tiktok')
             .select('*')
+            .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
         if (error) {
             console.error('Error fetching history:', error);
             toast.error('Failed to load history');
         } else {
-            // Map DB fields back to the structure expected by the UI if needed
-            // But since we save them in a flat structure, we can probably use them directly
-            // We need to reconstruct the nested objects for the UI or adapt the UI to flat structure
-            // Let's adapt the UI to handle both or map it here.
-
-            // Actually, the UI expects `authorMeta` object for display. 
-            // We should ideally store the raw JSON or map it back. 
-            // For simplicity and consistency with the previous "flat" saving, let's reconstruct the object.
             const mappedData = (data || []).map(item => ({
                 ...item,
                 authorMeta: {
@@ -168,6 +164,13 @@ export default function TikTokScraperPage() {
         // Don't clear selection or results immediately, we append
 
         try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                toast.error('You must be logged in to save results');
+                setLoading(false);
+                return;
+            }
+
             const res = await fetch('/api/apify/search', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -180,6 +183,7 @@ export default function TikTokScraperPage() {
             const newItems = (data.results || []).map((item: any) => {
                 const { email, phone } = extractContactInfoRobust(item.authorMeta?.signature || '');
                 return {
+                    user_id: user.id, // Add isolation
                     // Flattened structure for DB
                     username: item.authorMeta?.name,
                     kol_name: item.authorMeta?.nickName || item.authorMeta.name,

@@ -85,9 +85,13 @@ export default function InstagramHistoryTable() {
     const fetchProfiles = async () => {
         setLoading(true);
         try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return; // Should handle auth redirect ideally, but return for now
+
             const { data, error } = await supabase
                 .from('scraper_history_instagram')
                 .select('*')
+                .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
