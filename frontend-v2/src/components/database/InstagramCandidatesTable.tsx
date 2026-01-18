@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Loader2, Search, Trash2, Download, FileSpreadsheet, Copy, ArrowUpDown, ArrowUp, ArrowDown, Instagram } from 'lucide-react';
+import { Loader2, Search, Trash2, Download, FileSpreadsheet, Copy, ArrowUpDown, ArrowUp, ArrowDown, Instagram, Pencil } from 'lucide-react';
+import EditCandidateDialog from './EditCandidateDialog';
+import MassEditDialog from './MassEditDialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -63,6 +65,8 @@ export default function InstagramCandidatesTable({ campaignId }: InstagramCandid
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [candidateToDelete, setCandidateToDelete] = useState<string | null>(null);
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+    const [editingCandidate, setEditingCandidate] = useState<InstagramCandidate | null>(null);
+    const [showMassEdit, setShowMassEdit] = useState(false);
 
     useEffect(() => {
         fetchCandidates();
@@ -115,6 +119,15 @@ export default function InstagramCandidatesTable({ campaignId }: InstagramCandid
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleEditSuccess = () => {
+        fetchCandidates();
+    };
+
+    const handleMassEditComplete = () => {
+        fetchCandidates();
+        setSelectedIds(new Set());
     };
 
     const updateStatus = async (id: string, newStatus: string) => {
@@ -302,15 +315,26 @@ export default function InstagramCandidatesTable({ campaignId }: InstagramCandid
                 </div>
                 <div className="flex items-center gap-2">
                     {selectedIds.size > 0 && (
-                        <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={initiateBulkDelete}
-                            className="gap-2"
-                        >
-                            <Trash2 size={16} />
-                            Delete ({selectedIds.size})
-                        </Button>
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowMassEdit(true)}
+                                className="gap-2 bg-white/5 border-white/10 hover:bg-white/10"
+                            >
+                                <Pencil size={16} />
+                                Edit ({selectedIds.size})
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={initiateBulkDelete}
+                                className="gap-2"
+                            >
+                                <Trash2 size={16} />
+                                Delete ({selectedIds.size})
+                            </Button>
+                        </>
                     )}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -475,6 +499,15 @@ export default function InstagramCandidatesTable({ campaignId }: InstagramCandid
                                     <Button
                                         variant="ghost"
                                         size="icon"
+                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                        onClick={() => setEditingCandidate(candidate)}
+                                        title="Edit Details"
+                                    >
+                                        <Pencil size={14} />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
                                         className="h-7 w-7 text-muted-foreground hover:text-destructive"
                                         onClick={() => initiateDeleteCandidate(candidate.id)}
                                     >
@@ -512,6 +545,21 @@ export default function InstagramCandidatesTable({ campaignId }: InstagramCandid
                 description={`Delete ${selectedIds.size} candidates permanently?`}
                 confirmText="Delete"
                 variant="destructive"
+            />
+            <EditCandidateDialog
+                isOpen={!!editingCandidate}
+                onClose={() => setEditingCandidate(null)}
+                candidate={editingCandidate}
+                platform="instagram"
+                onSuccess={handleEditSuccess}
+            />
+
+            <MassEditDialog
+                isOpen={showMassEdit}
+                onClose={() => setShowMassEdit(false)}
+                selectedIds={selectedIds}
+                platform="instagram"
+                onComplete={handleMassEditComplete}
             />
         </div>
     );
