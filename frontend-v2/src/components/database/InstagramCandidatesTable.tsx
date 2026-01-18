@@ -155,6 +155,7 @@ export default function InstagramCandidatesTable({ campaignId }: InstagramCandid
         if (error) toast.error('Failed to delete candidate');
         else {
             toast.success('Candidate deleted');
+            setCandidates(prev => prev.filter(c => c.id !== candidateToDelete));
             setSelectedIds(prev => {
                 const next = new Set(prev);
                 next.delete(candidateToDelete);
@@ -179,6 +180,7 @@ export default function InstagramCandidatesTable({ campaignId }: InstagramCandid
         if (error) toast.error('Failed to delete candidates');
         else {
             toast.success(`${idsToDelete.length} candidates deleted`);
+            setCandidates(prev => prev.filter(c => !idsToDelete.includes(c.id)));
             setSelectedIds(new Set());
         }
         setShowBulkDeleteConfirm(false);
