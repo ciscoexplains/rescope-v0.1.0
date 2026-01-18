@@ -355,9 +355,9 @@ export default function InstagramCandidatesTable({ campaignId }: InstagramCandid
                                     Followers {getSortIcon('followers')}
                                 </div>
                             </th>
-                            <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('posts_count')}>
+                            <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('tier')}>
                                 <div className="flex items-center gap-1">
-                                    Posts {getSortIcon('posts_count')}
+                                    Tier {getSortIcon('tier')}
                                 </div>
                             </th>
                             <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('median_views')}>
@@ -434,8 +434,14 @@ export default function InstagramCandidatesTable({ campaignId }: InstagramCandid
                                 <td className="px-4 py-4 align-top text-sm font-medium">
                                     {candidate.followers?.toLocaleString()}
                                 </td>
-                                <td className="px-4 py-4 align-top text-xs text-muted-foreground">
-                                    <span className="text-foreground">{candidate.posts_count?.toLocaleString() || 0}</span>
+                                <td className="px-4 py-4 align-top text-xs">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium 
+                                        ${candidate.tier === 'Nano' ? 'bg-zinc-800 text-zinc-300' :
+                                            candidate.tier === 'Micro' ? 'bg-blue-900/30 text-blue-400' :
+                                                candidate.tier === 'Mid/Macro' ? 'bg-purple-900/30 text-purple-400' :
+                                                    'bg-yellow-900/30 text-yellow-400'}`}>
+                                        {candidate.tier || 'Nano'}
+                                    </span>
                                 </td>
                                 <td className="px-4 py-4 align-top text-xs text-muted-foreground">
                                     <span className="text-foreground">{candidate.median_views?.toLocaleString() || 0}</span>
