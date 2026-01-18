@@ -75,7 +75,7 @@ export default function InstagramScraperPage() {
     const [newKeyword, setNewKeyword] = useState('');
     const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
     const [bulkKeywords, setBulkKeywords] = useState('');
-    const [keywordLocation, setKeywordLocation] = useState('biography'); // Dropdown: Biography, Full Name
+    const [keywordLocation, setKeywordLocation] = useState('anywhere'); // Dropdown: Biography, Full Name
 
     const [locationKeywords, setLocationKeywords] = useState('');
     const [profileLanguage, setProfileLanguage] = useState('any');
@@ -596,7 +596,7 @@ export default function InstagramScraperPage() {
                                                 <th className="px-4 py-3">Contact</th>
                                                 <th className="px-4 py-3">Followers</th>
                                                 <th className="px-4 py-3">Following</th>
-                                                <th className="px-4 py-3">Post in 30 Days</th>
+                                                <th className="px-4 py-3">Tier</th>
                                                 <th className="px-4 py-3">Median Views</th>
                                                 <th className="px-4 py-3">ER</th>
                                             </tr>
@@ -621,7 +621,15 @@ export default function InstagramScraperPage() {
                                                     </td>
                                                     <td className="px-4 py-4">{profile.followers?.toLocaleString()}</td>
                                                     <td className="px-4 py-4 text-muted-foreground">{profile.following?.toLocaleString()}</td>
-                                                    <td className="px-4 py-4 text-muted-foreground">{profile.last_post_days !== undefined ? `${profile.last_post_days} Day(s)` : 'N/A'}</td>
+                                                    <td className="px-4 py-4">
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium 
+                                                            ${profile.tier === 'Nano' ? 'bg-zinc-800 text-zinc-300' :
+                                                                profile.tier === 'Micro' ? 'bg-blue-900/30 text-blue-400' :
+                                                                    profile.tier === 'Mid/Macro' ? 'bg-purple-900/30 text-purple-400' :
+                                                                        'bg-yellow-900/30 text-yellow-400'}`}>
+                                                            {profile.tier || 'Nano'}
+                                                        </span>
+                                                    </td>
                                                     <td className="px-4 py-4 text-muted-foreground">{profile.median_views?.toLocaleString()}</td>
                                                     <td className="px-4 py-4 font-medium text-green-400">{profile.er}%</td>
                                                 </tr>

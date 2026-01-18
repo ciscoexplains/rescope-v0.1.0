@@ -324,10 +324,10 @@ export default function InstagramHistoryTable() {
                                     {getSortIcon('following')}
                                 </div>
                             </th>
-                            <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('posts_count')}>
+                            <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('tier')}>
                                 <div className="flex items-center gap-1">
-                                    Posts
-                                    {getSortIcon('posts_count')}
+                                    Tier
+                                    {getSortIcon('tier')}
                                 </div>
                             </th>
                             <th className="px-4 py-3 cursor-pointer hover:text-foreground transition-colors group" onClick={() => requestSort('median_views')}>
@@ -405,7 +405,15 @@ export default function InstagramHistoryTable() {
                                 </td>
                                 <td className="px-4 py-4 align-top">{profile.followers?.toLocaleString()}</td>
                                 <td className="px-4 py-4 align-top">{profile.following?.toLocaleString()}</td>
-                                <td className="px-4 py-4 align-top">{profile.posts_count?.toLocaleString()}</td>
+                                <td className="px-4 py-4 align-top">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium 
+                                        ${profile.tier === 'Nano' ? 'bg-zinc-800 text-zinc-300' :
+                                            profile.tier === 'Micro' ? 'bg-blue-900/30 text-blue-400' :
+                                                profile.tier === 'Mid' ? 'bg-purple-900/30 text-purple-400' :
+                                                    'bg-yellow-900/30 text-yellow-400'}`}>
+                                        {profile.tier || 'Nano'}
+                                    </span>
+                                </td>
                                 <td className="px-4 py-4 align-top">{profile.median_views?.toLocaleString()}</td>
                                 <td className="px-4 py-4 align-top">{profile.er}%</td>
                                 <td className="px-4 py-4 align-top">

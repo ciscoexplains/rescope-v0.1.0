@@ -92,7 +92,7 @@ export default function CampaignWorkspace() {
             >
                 <Button variant="outline" onClick={handleFinish} className="gap-2">
                     <CheckCircle size={16} />
-                    Finish Task
+                    Finish
                 </Button>
             </DashboardHeader>
 
