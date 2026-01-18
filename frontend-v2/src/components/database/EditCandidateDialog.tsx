@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { KOL_CATEGORIES } from '@/constants/categories';
+import { KOL_REGIONS } from '@/constants/regions';
 
 interface EditCandidateDialogProps {
     isOpen: boolean;
@@ -68,7 +69,10 @@ export default function EditCandidateDialog({ isOpen, onClose, candidate, platfo
                 </DialogHeader>
 
                 <div className="grid gap-6 py-4">
-                    {/* Basic Info */}
+                    {/* Identity */}
+                    <div className="space-y-2">
+                        <h3 className="text-sm font-medium text-muted-foreground border-b pb-2">Identity</h3>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="kol_name">Name</Label>
@@ -88,70 +92,20 @@ export default function EditCandidateDialog({ isOpen, onClose, candidate, platfo
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="profile_url">Profile URL</Label>
-                            <Input
-                                id="profile_url"
-                                value={formData.profile_url || ''}
-                                onChange={(e) => handleChange('profile_url', e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="avatar">Avatar URL</Label>
-                            <Input
-                                id="avatar"
-                                value={formData.avatar || ''}
-                                onChange={(e) => handleChange('avatar', e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="status">Status</Label>
-                            <Select
-                                value={formData.status || 'New'}
-                                onValueChange={(value) => handleChange('status', value)}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="New">New</SelectItem>
-                                    <SelectItem value="Contacted">Contacted</SelectItem>
-                                    <SelectItem value="Responding">Responding</SelectItem>
-                                    <SelectItem value="Declined">Declined</SelectItem>
-                                    <SelectItem value="Completed">Completed</SelectItem>
-                                    <SelectItem value="Trashed">Trashed</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="tier">Tier</Label>
-                            <Select
-                                value={formData.tier || 'Nano'}
-                                onValueChange={(value) => handleChange('tier', value)}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select tier" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Nano">Nano</SelectItem>
-                                    <SelectItem value="Micro">Micro</SelectItem>
-                                    <SelectItem value="Mid/Macro">Mid/Macro</SelectItem>
-                                    <SelectItem value="Macro">Macro</SelectItem>
-                                    <SelectItem value="Mega">Mega</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="profile_url">Profile URL</Label>
+                        <Input
+                            id="profile_url"
+                            value={formData.profile_url || ''}
+                            onChange={(e) => handleChange('profile_url', e.target.value)}
+                        />
                     </div>
 
                     {/* Metrics */}
                     <div className="space-y-2">
                         <h3 className="text-sm font-medium text-muted-foreground border-b pb-2">Metrics</h3>
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="followers">Followers</Label>
                             <Input
@@ -171,7 +125,7 @@ export default function EditCandidateDialog({ isOpen, onClose, candidate, platfo
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="posts">Posts/Videos</Label>
+                            <Label htmlFor="posts">Post/Videos</Label>
                             <Input
                                 id="posts"
                                 type="number"
@@ -235,50 +189,38 @@ export default function EditCandidateDialog({ isOpen, onClose, candidate, platfo
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="region">Region</Label>
-                            <Input
-                                id="region"
+                            <Select
                                 value={formData.region || ''}
-                                onChange={(e) => handleChange('region', e.target.value)}
-                            />
+                                onValueChange={(value) => handleChange('region', value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select region" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[200px]">
+                                    {KOL_REGIONS.map((region) => (
+                                        <SelectItem key={region} value={region}>
+                                            {region}
+                                        </SelectItem>
+                                    ))}
+                                    <SelectItem value="Other">Other</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="segment">Segment</Label>
-                            <Input
-                                id="segment"
+                            <Select
                                 value={formData.segment || ''}
-                                onChange={(e) => handleChange('segment', e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Contact */}
-                    <div className="space-y-2">
-                        <h3 className="text-sm font-medium text-muted-foreground border-b pb-2">Contact Info</h3>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                value={formData.email || ''}
-                                onChange={(e) => handleChange('email', e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="contact">Phone</Label>
-                            <Input
-                                id="contact"
-                                value={formData.contact || ''}
-                                onChange={(e) => handleChange('contact', e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="website">Website</Label>
-                            <Input
-                                id="website"
-                                value={formData.website || ''}
-                                onChange={(e) => handleChange('website', e.target.value)}
-                            />
+                                onValueChange={(value) => handleChange('segment', value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select segment" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Low">Low</SelectItem>
+                                    <SelectItem value="Mid">Mid</SelectItem>
+                                    <SelectItem value="High">High</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                 </div>

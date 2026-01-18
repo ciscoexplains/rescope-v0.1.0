@@ -130,13 +130,21 @@ export default function TikTokCandidatesTable({ campaignId }: TikTokCandidatesTa
     };
 
     const updateStatus = async (id: string, newStatus: string) => {
+        // Optimistic update
+        setCandidates(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
+
         const { error } = await supabase
             .from('candidates_tiktok')
             .update({ status: newStatus })
             .eq('id', id);
 
-        if (error) toast.error('Failed to update status');
-        else toast.success('Status updated');
+        if (error) {
+            toast.error('Failed to update status');
+            // Revert on error
+            fetchCandidates();
+        } else {
+            toast.success('Status updated');
+        }
     };
 
     const initiateDeleteCandidate = (id: string) => {

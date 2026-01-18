@@ -104,7 +104,7 @@ export default function LoginPage() {
                                 disabled={loading}
                                 className="h-11 bg-background/50 border-input focus:border-primary focus:ring-primary/20 text-foreground"
                             />
-                            <div className="flex justify-end">
+                            <div className="flex justify-start">
                                 <a href="#" className="text-xs font-medium text-primary hover:text-primary/90 transition-colors">
                                     Forgot password?
                                 </a>

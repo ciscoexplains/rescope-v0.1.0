@@ -16,6 +16,7 @@ import {
     AlertDialog,
 } from "@/components/ui/alert-dialog";
 import { WhatsAppButton } from '@/components/ui/whatsapp-button';
+import { KOL_CATEGORIES } from '@/constants/categories';
 
 export default function TikTokHistoryTable() {
     const [loading, setLoading] = useState(false);
@@ -499,17 +500,11 @@ export default function TikTokHistoryTable() {
                                                     onChange={(e) => updateField(idx, 'category', e.target.value)}
                                                 >
                                                     <option value="" className="bg-zinc-900 text-muted-foreground">Select Category</option>
-                                                    <option value="Beauty & Fashion" className="bg-zinc-900">Beauty & Fashion</option>
-                                                    <option value="Food & Beverage" className="bg-zinc-900">Food & Beverage</option>
-                                                    <option value="Health & Wellness" className="bg-zinc-900">Health & Wellness</option>
-                                                    <option value="Technology & Gadgets" className="bg-zinc-900">Technology & Gadgets</option>
-                                                    <option value="Travel & Lifestyle" className="bg-zinc-900">Travel & Lifestyle</option>
-                                                    <option value="Entertainment & Gaming" className="bg-zinc-900">Entertainment & Gaming</option>
-                                                    <option value="Education & Career" className="bg-zinc-900">Education & Career</option>
-                                                    <option value="Sports & Outdoors" className="bg-zinc-900">Sports & Outdoors</option>
-                                                    <option value="Mom & Baby" className="bg-zinc-900">Mom & Baby</option>
-                                                    <option value="Home & Living" className="bg-zinc-900">Home & Living</option>
-                                                    <option value="Finance & Business" className="bg-zinc-900">Finance & Business</option>
+                                                    {KOL_CATEGORIES.map((category) => (
+                                                        <option key={category} value={category} className="bg-zinc-900">
+                                                            {category}
+                                                        </option>
+                                                    ))}
                                                     <option value="Other" className="bg-zinc-900">Other</option>
                                                 </select>
                                                 <Input
